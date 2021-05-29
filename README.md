@@ -23,7 +23,7 @@ Current configuration is as follow:
 * between civil and nautical twilight ( -12° < sun elevation < -6° ): Brightness = linear function of sun elevation between 50% and 100%
 * during the night ( sun elevation < -12° ): Brightness = 50%
 
-![image](./doc/brightness.png)
+![image](https://github.com/greg5813/circadian_lighting/blob/5828bcd7e8db1c568a4ca92e7d99c9553cf61ce8/doc/brightness.png)
 
 ### Color temperature
 
@@ -39,7 +39,7 @@ Current configuration is as follow:
 * between twilight and civil twilight ( -6° < sun elevation < -0.833° ): ColorTemp = linear function of sun elevation between 2000K and 3000K
 * during the night ( sun elevation < -6° ): ColorTemp = 2000K
 
-![image](./doc/color-temp.png)
+![image](https://github.com/greg5813/circadian_lighting/blob/5828bcd7e8db1c568a4ca92e7d99c9553cf61ce8/doc/color-temp.png)
 
 ## Installation
 
@@ -66,3 +66,22 @@ This will create two new sensors:
 * sensor.circadian_light_color_temperature
 
 You can use these two sensors in your automations to set your lights brightness and color temperature.
+
+```yaml
+# Example automations.yaml entry
+
+- alias: "Kitchen light on"
+  trigger:
+    - platform: time_pattern
+      seconds: "/30"
+  condition:
+    - condition: state
+    entity_id: light.kitchen
+    state: "on"
+  action:
+    - service: light.turn_on
+        data_template:
+            entity_id: light.kitchen
+            brightness_pct: {{ states('sensor.circadian_light_brightness') }}
+            kelvin: {{ states('sensor.circadian_light_color_temperature') }}
+```
