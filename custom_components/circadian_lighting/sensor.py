@@ -1,15 +1,20 @@
 """Platform for sensor integration."""
 
-DEPENDENCIES = ['circadian_lighting']
-
-from custom_components.circadian_lighting import DOMAIN, CIRCADIAN_LIGHTING_UPDATE_TOPIC, DATA_CIRCADIAN_LIGHTING
-from homeassistant.const import TEMP_KELVIN, PERCENTAGE
-from homeassistant.helpers.dispatcher import dispatcher_connect
 from homeassistant.helpers.entity import Entity
+from homeassistant.helpers.dispatcher import dispatcher_connect
+from homeassistant.const import TEMP_KELVIN, PERCENTAGE
+from custom_components.circadian_lighting import (
+    DOMAIN,
+    CIRCADIAN_LIGHTING_UPDATE_TOPIC,
+    DATA_CIRCADIAN_LIGHTING,
+)
+
+
+DEPENDENCIES = ["circadian_lighting"]
+
 
 def setup_platform(hass, config, add_entities, discovery_info=None):
     """Set up the sensor platform."""
-
     cl = hass.data.get(DATA_CIRCADIAN_LIGHTING)
     if cl:
         clcts = CircadianLightColorTemperatureSensor(hass, cl)
@@ -19,11 +24,13 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
         def update(call=None):
             """Update component."""
             cl._update()
+
         service_name = "values_update"
         hass.services.register(DOMAIN, service_name, update)
         return True
     else:
         return False
+
 
 class CircadianLightColorTemperatureSensor(Entity):
     """Representation of a Sensor."""
@@ -31,13 +38,15 @@ class CircadianLightColorTemperatureSensor(Entity):
     def __init__(self, hass, cl):
         """Initialize the sensor."""
         self._cl = cl
-        self._name = 'Circadian Light Color Temperature'
-        self._entity_id = 'sensor.circadian_light_color_temperature'
-        self._state = self._cl.data['color_temp']
+        self._name = "Circadian Light Color Temperature"
+        self._entity_id = "sensor.circadian_light_color_temperature"
+        self._state = self._cl.data["color_temp"]
         self._unit_of_measurement = TEMP_KELVIN
 
         """Register callbacks."""
-        dispatcher_connect(hass, CIRCADIAN_LIGHTING_UPDATE_TOPIC, self.update_sensor)
+        dispatcher_connect(
+            hass, CIRCADIAN_LIGHTING_UPDATE_TOPIC, self.update_sensor
+        )
 
     @property
     def entity_id(self):
@@ -67,8 +76,9 @@ class CircadianLightColorTemperatureSensor(Entity):
         self._cl.update()
 
     def update_sensor(self):
+        """Set sensor data from circadian lighting."""
         if self._cl.data is not None:
-            self._state = self._cl.data['color_temp']
+            self._state = self._cl.data["color_temp"]
 
 
 class CircadianLightBrightnessSensor(Entity):
@@ -77,13 +87,15 @@ class CircadianLightBrightnessSensor(Entity):
     def __init__(self, hass, cl):
         """Initialize the sensor."""
         self._cl = cl
-        self._name = 'Circadian Light Brightness'
-        self._entity_id = 'sensor.circadian_light_brightness'
-        self._state = self._cl.data['brightness']
+        self._name = "Circadian Light Brightness"
+        self._entity_id = "sensor.circadian_light_brightness"
+        self._state = self._cl.data["brightness"]
         self._unit_of_measurement = PERCENTAGE
 
         """Register callbacks."""
-        dispatcher_connect(hass, CIRCADIAN_LIGHTING_UPDATE_TOPIC, self.update_sensor)
+        dispatcher_connect(
+            hass, CIRCADIAN_LIGHTING_UPDATE_TOPIC, self.update_sensor
+        )
 
     @property
     def entity_id(self):
@@ -113,5 +125,6 @@ class CircadianLightBrightnessSensor(Entity):
         self._cl.update()
 
     def update_sensor(self):
+        """Set sensor data from circadian lighting."""
         if self._cl.data is not None:
-            self._state = self._cl.data['brightness']
+            self._state = self._cl.data["brightness"]
