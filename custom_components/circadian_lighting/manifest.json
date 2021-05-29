@@ -4,5 +4,7 @@
   "documentation": "",
   "dependencies": [],
   "codeowners": [],
-  "requirements": []
+  "requirements": [],
+  "version": "v1.0.0",
+  "issue_tracker": "https://github.com/greg5813/circadian_lighting/issues"
 }
