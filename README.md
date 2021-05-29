@@ -1,5 +1,7 @@
 # circadian_lighting
 
+![codeql-analysis](https://github.com/greg5813/circadian_lighting/actions/workflows/codeql-analysis.yml/badge.svg)
+
 Circadian lighting custom component for Home Assistant that brings several features that help to mimick the Sun light with connected lights.
 
 ## Features
