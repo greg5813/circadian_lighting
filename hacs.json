@@ -1,5 +1,6 @@
 {
     "name": "Circadian lighting",
     "content_in_root": false,
-    "render_readme": true
+    "render_readme": true,
+    "iot_class": ["Local Polling"]
 }
