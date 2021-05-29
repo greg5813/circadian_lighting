@@ -1,10 +1,11 @@
 {
   "domain": "circadian_lighting",
   "name": "Circadian Lighting",
-  "documentation": "",
+  "documentation": "https://github.com/greg5813/circadian_lighting/blob/main/README.md",
   "dependencies": [],
   "codeowners": [],
   "requirements": [],
   "version": "v1.0.0",
-  "issue_tracker": "https://github.com/greg5813/circadian_lighting/issues"
+  "issue_tracker": "https://github.com/greg5813/circadian_lighting/issues",
+  "iot_class": "local_polling"
 }
