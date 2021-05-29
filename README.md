@@ -76,8 +76,8 @@ You can use these two sensors in your automations to set your lights brightness 
       seconds: "/30"
   condition:
     - condition: state
-    entity_id: light.kitchen
-    state: "on"
+      entity_id: light.kitchen
+      state: "on"
   action:
     - service: light.turn_on
         data_template:
