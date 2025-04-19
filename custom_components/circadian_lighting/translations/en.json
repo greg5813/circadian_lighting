@@ -1,0 +1,8 @@
+{
+    "services": {
+        "values_update": {
+            "name": "Update values",
+            "description": "Updates values for Circadian Lighting."
+        }
+    }
+}
