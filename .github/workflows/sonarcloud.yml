@@ -1,12 +1,11 @@
-name: Build
+name: Sonarqube
 permissions:
   contents: read
 on:
   push:
-    branches:
-      - main
   pull_request:
-    types: [opened, synchronize, reopened]
+  schedule:
+    - cron:  '0 6 * * 6'
 jobs:
   sonarqube:
     name: SonarQube
