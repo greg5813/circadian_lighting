@@ -41,7 +41,7 @@ class CircadianLightColorTemperatureSensor(Entity):
         self._name = "Circadian Light Color Temperature"
         self._entity_id = "sensor.circadian_light_color_temperature"
         self._state = self._cl.data["color_temp"]
-        self._unit_of_measurement = UnitOfTemperature.TEMP_KELVIN
+        self._unit_of_measurement = UnitOfTemperature.KELVIN
 
         """Register callbacks."""
         dispatcher_connect(
