@@ -2,7 +2,7 @@
 
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.dispatcher import dispatcher_connect
-from homeassistant.const import TEMP_KELVIN, PERCENTAGE
+from homeassistant.const import UnitOfTemperature, PERCENTAGE
 from custom_components.circadian_lighting import (
     DOMAIN,
     CIRCADIAN_LIGHTING_UPDATE_TOPIC,
@@ -41,7 +41,7 @@ class CircadianLightColorTemperatureSensor(Entity):
         self._name = "Circadian Light Color Temperature"
         self._entity_id = "sensor.circadian_light_color_temperature"
         self._state = self._cl.data["color_temp"]
-        self._unit_of_measurement = TEMP_KELVIN
+        self._unit_of_measurement = UnitOfTemperature.TEMP_KELVIN
 
         """Register callbacks."""
         dispatcher_connect(
