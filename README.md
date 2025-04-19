@@ -1,9 +1,8 @@
 # circadian_lighting
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/custom-components/hacs)
-![validate](https://github.com/greg5813/circadian_lighting/actions/workflows/validate.yml/badge.svg)
+![hacs](https://github.com/greg5813/circadian_lighting/actions/workflows/hacs.yml/badge.svg)
 ![hassfest](https://github.com/greg5813/circadian_lighting/actions/workflows/hassfest.yml/badge.svg)
-![codeql-analysis](https://github.com/greg5813/circadian_lighting/actions/workflows/codeql-analysis.yml/badge.svg)
 
 Circadian lighting custom component for Home Assistant that brings several features that help to mimick the Sun light with connected lights.
 
