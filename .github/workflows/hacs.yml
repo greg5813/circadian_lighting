@@ -4,7 +4,7 @@ permissions:
   contents: read
 
 on:
-  push: 
+  push:
   pull_request:
   schedule:
     - cron: "0 6 * * 6"
@@ -17,3 +17,4 @@ jobs:
         uses: "hacs/action@main"
         with:
           category: "integration"
+          ignore: "brands"
