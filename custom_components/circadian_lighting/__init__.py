@@ -27,22 +27,32 @@ DEFAULT_MAX_CT = 5500
 CONF_INTERVAL = "interval"
 DEFAULT_INTERVAL = 60
 
+def _validate_colortemp_range(config):
+    """Validate that min_colortemp is less than max_colortemp."""
+    if config[CONF_MIN_CT] >= config[CONF_MAX_CT]:
+        raise vol.Invalid("min_colortemp must be less than max_colortemp")
+    return config
+
+
 CONFIG_SCHEMA = vol.Schema(
     {
-        DOMAIN: vol.Schema(
-            {
-                vol.Optional(CONF_MIN_CT, default=DEFAULT_MIN_CT): vol.All(
-                    vol.Coerce(int), vol.Range(min=1000, max=10000)
-                ),
-                vol.Optional(CONF_MAX_CT, default=DEFAULT_MAX_CT): vol.All(
-                    vol.Coerce(int), vol.Range(min=1000, max=10000)
-                ),
-                vol.Optional(CONF_LATITUDE): cv.latitude,
-                vol.Optional(CONF_LONGITUDE): cv.longitude,
-                vol.Optional(
-                    CONF_INTERVAL, default=DEFAULT_INTERVAL
-                ): cv.positive_int,
-            }
+        DOMAIN: vol.All(
+            vol.Schema(
+                {
+                    vol.Optional(CONF_MIN_CT, default=DEFAULT_MIN_CT): vol.All(
+                        vol.Coerce(int), vol.Range(min=1000, max=10000)
+                    ),
+                    vol.Optional(CONF_MAX_CT, default=DEFAULT_MAX_CT): vol.All(
+                        vol.Coerce(int), vol.Range(min=1000, max=10000)
+                    ),
+                    vol.Optional(CONF_LATITUDE): cv.latitude,
+                    vol.Optional(CONF_LONGITUDE): cv.longitude,
+                    vol.Optional(
+                        CONF_INTERVAL, default=DEFAULT_INTERVAL
+                    ): cv.positive_int,
+                }
+            ),
+            _validate_colortemp_range,
         ),
     },
     extra=vol.ALLOW_EXTRA,
@@ -417,22 +427,27 @@ class CircadianLighting(object):
         date = dt.now()
         latitude = self.data["latitude"]
         longitude = self.data["longitude"]
+        min_ct = self.data["min_colortemp"]
+        max_ct = self.data["max_colortemp"]
+        ct_range = max_ct - min_ct
+        ct_twilight_boundary = min_ct + ct_range * 2 / 7
         actual_elevation = degrees(self.elevation(date, latitude, longitude))
         if actual_elevation > -0.833:
             return round(
-                self.percent_elevation_day(date, latitude, longitude) * 2500
-                + 3000
+                self.percent_elevation_day(date, latitude, longitude)
+                * (max_ct - ct_twilight_boundary)
+                + ct_twilight_boundary
             )
-        elif actual_elevation <= -0.833 and actual_elevation > -6:
+        elif actual_elevation > -6:
             return round(
                 self.percent_elevation_civil_twilight(
                     date, latitude, longitude
                 )
-                * 1000
-                + 2000
+                * (ct_twilight_boundary - min_ct)
+                + min_ct
             )
         else:
-            return 2000
+            return min_ct
 
     def brightness(self):
         """Compute the circadian brightness."""
