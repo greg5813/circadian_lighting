@@ -100,50 +100,32 @@ class CircadianLighting(object):
 
     def fractional_year(self, date):
         """Compute the fractional year."""
-        if calendar.isleap(date.timetuple().tm_year):
-            fractional_year = (
-                2
-                * pi
-                / 366
-                * (
-                    date.timetuple().tm_yday
-                    - 1
-                    + (date.timetuple().tm_hour - 12) / 24
-                )
-            )
-        else:
-            fractional_year = (
-                2
-                * pi
-                / 365
-                * (
-                    date.timetuple().tm_yday
-                    - 1
-                    + (date.timetuple().tm_hour - 12) / 24
-                )
-            )
-        return fractional_year
+        tt = date.timetuple()
+        days_in_year = 366 if calendar.isleap(tt.tm_year) else 365
+        return 2 * pi / days_in_year * (tt.tm_yday - 1 + (tt.tm_hour - 12) / 24)
 
     def eqtime(self, date):
         """Compute the equation of time."""
+        fy = self.fractional_year(date)
         return 229.18 * (
             0.000075
-            + 0.001868 * cos(self.fractional_year(date))
-            - 0.032077 * sin(self.fractional_year(date))
-            - 0.014615 * cos(2 * self.fractional_year(date))
-            - 0.040849 * sin(2 * self.fractional_year(date))
+            + 0.001868 * cos(fy)
+            - 0.032077 * sin(fy)
+            - 0.014615 * cos(2 * fy)
+            - 0.040849 * sin(2 * fy)
         )
 
     def decl(self, date):
         """Compute the declination of the Sun."""
+        fy = self.fractional_year(date)
         return (
             0.006918
-            - 0.399912 * cos(self.fractional_year(date))
-            + 0.070257 * sin(self.fractional_year(date))
-            - 0.006758 * cos(2 * self.fractional_year(date))
-            + 0.000907 * sin(2 * self.fractional_year(date))
-            - 0.002697 * cos(3 * self.fractional_year(date))
-            + 0.00148 * sin(3 * self.fractional_year(date))
+            - 0.399912 * cos(fy)
+            + 0.070257 * sin(fy)
+            - 0.006758 * cos(2 * fy)
+            + 0.000907 * sin(2 * fy)
+            - 0.002697 * cos(3 * fy)
+            + 0.00148 * sin(3 * fy)
         )
 
     def _utc_offset_minutes(self, date):
