@@ -383,34 +383,29 @@ class CircadianLighting(object):
                 )
         return azimuth
 
+    def _percent_elevation(self, actual, min_elev, max_elev):
+        """Compute clamped percentage of elevation within a range."""
+        if max_elev <= min_elev:
+            return 0.0
+        return max(0.0, min(1.0, (actual - min_elev) / (max_elev - min_elev)))
+
     def percent_elevation_day(self, date, latitude, longitude):
         """Compute the percentage of the Sun elevation for the day."""
         max_elevation = degrees(
             self.solar_noon_elevation(date, latitude, longitude)
         )
-        min_elevation = -0.833
         actual_elevation = degrees(self.elevation(date, latitude, longitude))
-        return (actual_elevation - min_elevation) / (
-            max_elevation - min_elevation
-        )
+        return self._percent_elevation(actual_elevation, -0.833, max_elevation)
 
     def percent_elevation_civil_twilight(self, date, latitude, longitude):
         """Percentage of the Sun elevation for the civil twilight."""
-        max_elevation = -0.833
-        min_elevation = -6
         actual_elevation = degrees(self.elevation(date, latitude, longitude))
-        return (actual_elevation - min_elevation) / (
-            max_elevation - min_elevation
-        )
+        return self._percent_elevation(actual_elevation, -6, -0.833)
 
     def percent_elevation_nautical_twilight(self, date, latitude, longitude):
         """Percentage of the Sun elevation for the nautical twilight."""
-        max_elevation = -6
-        min_elevation = -12
         actual_elevation = degrees(self.elevation(date, latitude, longitude))
-        return (actual_elevation - min_elevation) / (
-            max_elevation - min_elevation
-        )
+        return self._percent_elevation(actual_elevation, -12, -6)
 
     def color_temp(self):
         """Compute the circadian color temperature."""
