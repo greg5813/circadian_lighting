@@ -159,41 +159,41 @@ class CircadianLighting(object):
 
     def elevation(self, date, latitude, longitude):
         """Compute the elevation of the Sun."""
-        return asin(
+        val = (
             sin(radians(latitude)) * sin(self.decl(date))
             + cos(radians(latitude))
             * cos(self.decl(date))
             * cos(radians(self.ha(date, longitude)))
         )
+        return asin(max(-1.0, min(1.0, val)))
 
     def zenith(self, date, latitude, longitude):
         """Compute the zenith of the Sun."""
-        return acos(
+        val = (
             sin(radians(latitude)) * sin(self.decl(date))
             + cos(radians(latitude))
             * cos(self.decl(date))
             * cos(radians(self.ha(date, longitude)))
         )
+        return acos(max(-1.0, min(1.0, val)))
 
     def ha_sunset(self, date, latitude):
         """Compute the hour angle of the sunset."""
-        return degrees(
-            acos(
-                cos(radians(90.833))
-                / (cos(radians(latitude)) * cos(self.decl(date)))
-                - (tan(radians(latitude)) * tan(self.decl(date)))
-            )
+        val = (
+            cos(radians(90.833))
+            / (cos(radians(latitude)) * cos(self.decl(date)))
+            - (tan(radians(latitude)) * tan(self.decl(date)))
         )
+        return degrees(acos(max(-1.0, min(1.0, val))))
 
     def ha_sunrise(self, date, latitude):
         """Compute the hour angle of the sunrise."""
-        return degrees(
-            -acos(
-                cos(radians(90.833))
-                / (cos(radians(latitude)) * cos(self.decl(date)))
-                - (tan(radians(latitude)) * tan(self.decl(date)))
-            )
+        val = (
+            cos(radians(90.833))
+            / (cos(radians(latitude)) * cos(self.decl(date)))
+            - (tan(radians(latitude)) * tan(self.decl(date)))
         )
+        return degrees(-acos(max(-1.0, min(1.0, val))))
 
     def sunrise(self, date, latitude, longitude):
         """Compute the sunrise in minutes from midnight."""
@@ -230,30 +230,23 @@ class CircadianLighting(object):
             + round(dt.now().utcoffset().total_seconds() / 60)
         )
 
+    def _minutes_to_datetime(self, date, minutes):
+        """Convert minutes from midnight to a datetime, handling day wrapping."""
+        total_seconds = int(minutes % 1440 * 60)
+        hours, remainder = divmod(total_seconds, 3600)
+        mins, secs = divmod(remainder, 60)
+        return datetime.datetime(date.year, date.month, date.day, hours, mins, secs)
+
     def solar_noon_elevation(self, date, latitude, longitude):
         """Compute the solar noon elevation."""
         noon = self.solar_noon(date, longitude)
-        date_noon = datetime.datetime(
-            date.year,
-            date.month,
-            date.day,
-            int(modf(noon / 60)[1]),
-            int(modf(60 * modf(noon / 60)[0])[1]),
-            floor(60 * modf(60 * modf(noon / 60)[0])[0]),
-        )
+        date_noon = self._minutes_to_datetime(date, noon)
         return self.elevation(date_noon, latitude, longitude)
 
     def solar_midnight_elevation(self, date, latitude, longitude):
         """Compute the solar midnight elevation."""
         midnight = self.solar_midnight(date, longitude)
-        date_midnight = datetime.datetime(
-            date.year,
-            date.month,
-            date.day,
-            int(modf(midnight / 60)[1]),
-            int(modf(60 * modf(midnight / 60)[0])[1]),
-            floor(60 * modf(60 * modf(midnight / 60)[0])[0]),
-        )
+        date_midnight = self._minutes_to_datetime(date, midnight)
         return self.elevation(date_midnight, latitude, longitude)
 
     def azimuth(self, date, latitude, longitude):
