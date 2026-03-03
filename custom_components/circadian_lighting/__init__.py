@@ -9,14 +9,13 @@ from homeassistant.helpers.dispatcher import dispatcher_send
 from datetime import timedelta
 import calendar
 import datetime
-from math import pi, sin, cos, tan, asin, acos, degrees, radians, modf, floor
+from math import pi, sin, cos, asin, degrees, radians
 import logging
 
 
 _LOGGER = logging.getLogger(__name__)
 
 DOMAIN = "circadian_lighting"
-CIRCADIAN_LIGHTING_PLATFORMS = ["sensor", "switch"]
 CIRCADIAN_LIGHTING_UPDATE_TOPIC = "{0}_update".format(DOMAIN)
 DATA_CIRCADIAN_LIGHTING = "data_cl"
 
@@ -167,52 +166,6 @@ class CircadianLighting(object):
         )
         return asin(max(-1.0, min(1.0, val)))
 
-    def zenith(self, date, latitude, longitude):
-        """Compute the zenith of the Sun."""
-        val = (
-            sin(radians(latitude)) * sin(self.decl(date))
-            + cos(radians(latitude))
-            * cos(self.decl(date))
-            * cos(radians(self.ha(date, longitude)))
-        )
-        return acos(max(-1.0, min(1.0, val)))
-
-    def ha_sunset(self, date, latitude):
-        """Compute the hour angle of the sunset."""
-        val = (
-            cos(radians(90.833))
-            / (cos(radians(latitude)) * cos(self.decl(date)))
-            - (tan(radians(latitude)) * tan(self.decl(date)))
-        )
-        return degrees(acos(max(-1.0, min(1.0, val))))
-
-    def ha_sunrise(self, date, latitude):
-        """Compute the hour angle of the sunrise."""
-        val = (
-            cos(radians(90.833))
-            / (cos(radians(latitude)) * cos(self.decl(date)))
-            - (tan(radians(latitude)) * tan(self.decl(date)))
-        )
-        return degrees(-acos(max(-1.0, min(1.0, val))))
-
-    def sunrise(self, date, latitude, longitude):
-        """Compute the sunrise in minutes from midnight."""
-        return (
-            720
-            - 4 * (longitude - self.ha_sunrise(date, latitude))
-            - self.eqtime(date)
-            + self._utc_offset_minutes(date)
-        )
-
-    def sunset(self, date, latitude, longitude):
-        """Compute the sunset in minutes from midnight."""
-        return (
-            720
-            - 4 * (longitude - self.ha_sunset(date, latitude))
-            - self.eqtime(date)
-            + self._utc_offset_minutes(date)
-        )
-
     def solar_noon(self, date, longitude):
         """Compute the solar noon in minutes from midnight."""
         return (
@@ -248,140 +201,6 @@ class CircadianLighting(object):
         midnight = self.solar_midnight(date, longitude)
         date_midnight = self._minutes_to_datetime(date, midnight)
         return self.elevation(date_midnight, latitude, longitude)
-
-    def azimuth(self, date, latitude, longitude):
-        """Compute the azimuth of the Sun."""
-        date_seconds = date.hour * 60 + date.minute + date.second / 60
-        midnight = self.solar_midnight(date, longitude)
-        noon = self.solar_noon(date, longitude)
-        midnight0 = midnight > 0
-        noon1440 = noon < 1440
-        before_midnight = (date_seconds - midnight % 1440) < 0
-        before_noon = (date_seconds - noon % 1440) < 0
-        if midnight0 and noon1440:
-            if before_midnight and before_noon:
-                azimuth = (
-                    -acos(
-                        (
-                            sin(self.decl(date))
-                            - sin(radians(latitude))
-                            * cos(self.zenith(date, latitude, longitude))
-                        )
-                        / (
-                            cos(radians(latitude))
-                            * sin(self.zenith(date, latitude, longitude))
-                        )
-                    )
-                    + 2 * pi
-                )
-            elif not before_midnight and before_noon:
-                azimuth = acos(
-                    (
-                        sin(self.decl(date))
-                        - sin(radians(latitude))
-                        * cos(self.zenith(date, latitude, longitude))
-                    )
-                    / (
-                        cos(radians(latitude))
-                        * sin(self.zenith(date, latitude, longitude))
-                    )
-                )
-            elif not before_midnight and not before_noon:
-                azimuth = (
-                    -acos(
-                        (
-                            sin(self.decl(date))
-                            - sin(radians(latitude))
-                            * cos(self.zenith(date, latitude, longitude))
-                        )
-                        / (
-                            cos(radians(latitude))
-                            * sin(self.zenith(date, latitude, longitude))
-                        )
-                    )
-                    + 2 * pi
-                )
-        elif not midnight0 and noon1440:
-            if before_midnight and before_noon:
-                azimuth = acos(
-                    (
-                        sin(self.decl(date))
-                        - sin(radians(latitude))
-                        * cos(self.zenith(date, latitude, longitude))
-                    )
-                    / (
-                        cos(radians(latitude))
-                        * sin(self.zenith(date, latitude, longitude))
-                    )
-                )
-            elif before_midnight and not before_noon:
-                azimuth = (
-                    -acos(
-                        (
-                            sin(self.decl(date))
-                            - sin(radians(latitude))
-                            * cos(self.zenith(date, latitude, longitude))
-                        )
-                        / (
-                            cos(radians(latitude))
-                            * sin(self.zenith(date, latitude, longitude))
-                        )
-                    )
-                    + 2 * pi
-                )
-            elif not before_midnight and not before_noon:
-                azimuth = acos(
-                    (
-                        sin(self.decl(date))
-                        - sin(radians(latitude))
-                        * cos(self.zenith(date, latitude, longitude))
-                    )
-                    / (
-                        cos(radians(latitude))
-                        * sin(self.zenith(date, latitude, longitude))
-                    )
-                )
-        elif midnight0 and not noon1440:
-            if before_midnight and before_noon:
-                azimuth = acos(
-                    (
-                        sin(self.decl(date))
-                        - sin(radians(latitude))
-                        * cos(self.zenith(date, latitude, longitude))
-                    )
-                    / (
-                        cos(radians(latitude))
-                        * sin(self.zenith(date, latitude, longitude))
-                    )
-                )
-            elif before_midnight and not before_noon:
-                azimuth = (
-                    -acos(
-                        (
-                            sin(self.decl(date))
-                            - sin(radians(latitude))
-                            * cos(self.zenith(date, latitude, longitude))
-                        )
-                        / (
-                            cos(radians(latitude))
-                            * sin(self.zenith(date, latitude, longitude))
-                        )
-                    )
-                    + 2 * pi
-                )
-            elif not before_midnight and not before_noon:
-                azimuth = acos(
-                    (
-                        sin(self.decl(date))
-                        - sin(radians(latitude))
-                        * cos(self.zenith(date, latitude, longitude))
-                    )
-                    / (
-                        cos(radians(latitude))
-                        * sin(self.zenith(date, latitude, longitude))
-                    )
-                )
-        return azimuth
 
     def _percent_elevation(self, actual, min_elev, max_elev):
         """Compute clamped percentage of elevation within a range."""
