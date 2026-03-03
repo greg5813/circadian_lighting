@@ -146,12 +146,20 @@ class CircadianLighting(object):
             + 0.00148 * sin(3 * self.fractional_year(date))
         )
 
+    def _utc_offset_minutes(self, date):
+        """Get the UTC offset in minutes for the given date's timezone."""
+        tz = dt.DEFAULT_TIME_ZONE
+        offset = date.replace(tzinfo=None).replace(tzinfo=tz).utcoffset()
+        if offset is None:
+            offset = dt.now().utcoffset()
+        return round(offset.total_seconds() / 60)
+
     def time_offset(self, date, longitude):
         """Compute the time offset of the solar time."""
         return (
             self.eqtime(date)
             + 4 * longitude
-            - round(dt.now().utcoffset().total_seconds() / 60)
+            - self._utc_offset_minutes(date)
         )
 
     def tst(self, date, longitude):
@@ -211,7 +219,7 @@ class CircadianLighting(object):
             720
             - 4 * (longitude - self.ha_sunrise(date, latitude))
             - self.eqtime(date)
-            + round(dt.now().utcoffset().total_seconds() / 60)
+            + self._utc_offset_minutes(date)
         )
 
     def sunset(self, date, latitude, longitude):
@@ -220,7 +228,7 @@ class CircadianLighting(object):
             720
             - 4 * (longitude - self.ha_sunset(date, latitude))
             - self.eqtime(date)
-            + round(dt.now().utcoffset().total_seconds() / 60)
+            + self._utc_offset_minutes(date)
         )
 
     def solar_noon(self, date, longitude):
@@ -229,7 +237,7 @@ class CircadianLighting(object):
             720
             - 4 * longitude
             - self.eqtime(date)
-            + round(dt.now().utcoffset().total_seconds() / 60)
+            + self._utc_offset_minutes(date)
         )
 
     def solar_midnight(self, date, longitude):
@@ -237,7 +245,7 @@ class CircadianLighting(object):
         return (
             -4 * longitude
             - self.eqtime(date)
-            + round(dt.now().utcoffset().total_seconds() / 60)
+            + self._utc_offset_minutes(date)
         )
 
     def _minutes_to_datetime(self, date, minutes):
