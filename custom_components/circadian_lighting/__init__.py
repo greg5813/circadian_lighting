@@ -10,13 +10,8 @@ from datetime import timedelta
 import calendar
 import datetime
 from math import pi, sin, cos, asin, degrees, radians
-import logging
-
-
-_LOGGER = logging.getLogger(__name__)
-
 DOMAIN = "circadian_lighting"
-CIRCADIAN_LIGHTING_UPDATE_TOPIC = "{0}_update".format(DOMAIN)
+CIRCADIAN_LIGHTING_UPDATE_TOPIC = f"{DOMAIN}_update"
 DATA_CIRCADIAN_LIGHTING = "data_cl"
 
 CONF_MIN_CT = "min_colortemp"
@@ -78,7 +73,7 @@ def setup(hass, config):
     return True
 
 
-class CircadianLighting(object):
+class CircadianLighting:
     """Circadian lighting class."""
 
     def __init__(
