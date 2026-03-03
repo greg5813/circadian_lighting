@@ -58,13 +58,13 @@ def setup(hass, config):
     longitude = conf.get(CONF_LONGITUDE, hass.config.longitude)
     interval = conf.get(CONF_INTERVAL)
 
-    load_platform(hass, "sensor", DOMAIN, {}, config)
-
     cl = CircadianLighting(
         hass, min_colortemp, max_colortemp, latitude, longitude, interval
     )
 
     hass.data[DATA_CIRCADIAN_LIGHTING] = cl
+
+    load_platform(hass, "sensor", DOMAIN, {}, config)
 
     return True
 
