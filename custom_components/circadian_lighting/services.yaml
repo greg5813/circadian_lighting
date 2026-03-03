@@ -1,1 +1,3 @@
 values_update:
+  name: "Update values"
+  description: "Force an immediate recalculation of circadian lighting values."
