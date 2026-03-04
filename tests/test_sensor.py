@@ -2,39 +2,45 @@
 
 from unittest.mock import MagicMock
 
+from custom_components.circadian_lighting import (
+    CIRCADIAN_LIGHTING_UPDATE_TOPIC,
+    DATA_CIRCADIAN_LIGHTING,
+    DOMAIN,
+)
+from custom_components.circadian_lighting.sensor import (
+    CircadianLightBrightnessSensor,
+    CircadianLightColorTemperatureSensor,
+    setup_platform,
+)
+from homeassistant.const import PERCENTAGE, UnitOfTemperature
+
+
+def _make_cl_mock():
+    cl = MagicMock()
+    cl.data = {"color_temp": 4000, "brightness": 100}
+    cl.update = MagicMock()
+    cl._update = MagicMock()
+    return cl
+
+
 # ---------------------------------------------------------------------------
 # setup_platform
 # ---------------------------------------------------------------------------
 
 
 class TestSetupPlatform:
-    def _make_cl_mock(self):
-        cl = MagicMock()
-        cl.data = {"color_temp": 4000, "brightness": 100}
-        cl.update = MagicMock()
-        cl._update = MagicMock()
-        return cl
-
     def test_returns_true_when_cl_exists(self, mock_hass, mock_dispatcher_connect):
-        from custom_components.circadian_lighting import DATA_CIRCADIAN_LIGHTING
-        from custom_components.circadian_lighting.sensor import setup_platform
-
-        cl = self._make_cl_mock()
+        cl = _make_cl_mock()
         mock_hass.data[DATA_CIRCADIAN_LIGHTING] = cl
         add_entities = MagicMock()
         assert setup_platform(mock_hass, {}, add_entities) is True
 
     def test_returns_false_when_cl_missing(self, mock_hass, mock_dispatcher_connect):
-        from custom_components.circadian_lighting.sensor import setup_platform
-
         add_entities = MagicMock()
         assert setup_platform(mock_hass, {}, add_entities) is False
 
     def test_adds_two_entities(self, mock_hass, mock_dispatcher_connect):
-        from custom_components.circadian_lighting import DATA_CIRCADIAN_LIGHTING
-        from custom_components.circadian_lighting.sensor import setup_platform
-
-        cl = self._make_cl_mock()
+        cl = _make_cl_mock()
         mock_hass.data[DATA_CIRCADIAN_LIGHTING] = cl
         add_entities = MagicMock()
         setup_platform(mock_hass, {}, add_entities)
@@ -43,13 +49,7 @@ class TestSetupPlatform:
         assert len(entities) == 2
 
     def test_registers_service(self, mock_hass, mock_dispatcher_connect):
-        from custom_components.circadian_lighting import (
-            DATA_CIRCADIAN_LIGHTING,
-            DOMAIN,
-        )
-        from custom_components.circadian_lighting.sensor import setup_platform
-
-        cl = self._make_cl_mock()
+        cl = _make_cl_mock()
         mock_hass.data[DATA_CIRCADIAN_LIGHTING] = cl
         setup_platform(mock_hass, {}, MagicMock())
         mock_hass.services.register.assert_called_once()
@@ -58,10 +58,7 @@ class TestSetupPlatform:
         assert call_args[0][1] == "values_update"
 
     def test_service_calls_cl_update(self, mock_hass, mock_dispatcher_connect):
-        from custom_components.circadian_lighting import DATA_CIRCADIAN_LIGHTING
-        from custom_components.circadian_lighting.sensor import setup_platform
-
-        cl = self._make_cl_mock()
+        cl = _make_cl_mock()
         mock_hass.data[DATA_CIRCADIAN_LIGHTING] = cl
         setup_platform(mock_hass, {}, MagicMock())
         service_callback = mock_hass.services.register.call_args[0][2]
@@ -69,20 +66,14 @@ class TestSetupPlatform:
         cl._update.assert_called_once()
 
     def test_service_accepts_call_param(self, mock_hass, mock_dispatcher_connect):
-        from custom_components.circadian_lighting import DATA_CIRCADIAN_LIGHTING
-        from custom_components.circadian_lighting.sensor import setup_platform
-
-        cl = self._make_cl_mock()
+        cl = _make_cl_mock()
         mock_hass.data[DATA_CIRCADIAN_LIGHTING] = cl
         setup_platform(mock_hass, {}, MagicMock())
         service_callback = mock_hass.services.register.call_args[0][2]
         service_callback(call=MagicMock())  # should not raise
 
     def test_discovery_info_default(self, mock_hass, mock_dispatcher_connect):
-        from custom_components.circadian_lighting import DATA_CIRCADIAN_LIGHTING
-        from custom_components.circadian_lighting.sensor import setup_platform
-
-        cl = self._make_cl_mock()
+        cl = _make_cl_mock()
         mock_hass.data[DATA_CIRCADIAN_LIGHTING] = cl
         assert setup_platform(mock_hass, {}, MagicMock(), discovery_info=None) is True
 
@@ -94,13 +85,8 @@ class TestSetupPlatform:
 
 class TestColorTemperatureSensor:
     def _make_sensor(self, mock_hass, mock_dispatcher_connect):
-        from custom_components.circadian_lighting.sensor import (
-            CircadianLightColorTemperatureSensor,
-        )
-
-        cl = MagicMock()
+        cl = _make_cl_mock()
         cl.data = {"color_temp": 4500, "brightness": 80}
-        cl.update = MagicMock()
         return CircadianLightColorTemperatureSensor(mock_hass, cl), cl
 
     def test_name(self, mock_hass, mock_dispatcher_connect):
@@ -116,8 +102,6 @@ class TestColorTemperatureSensor:
         assert sensor.state == 4500
 
     def test_unit_of_measurement(self, mock_hass, mock_dispatcher_connect):
-        from homeassistant.const import UnitOfTemperature
-
         sensor, _ = self._make_sensor(mock_hass, mock_dispatcher_connect)
         assert sensor.unit_of_measurement == UnitOfTemperature.KELVIN
 
@@ -140,10 +124,6 @@ class TestColorTemperatureSensor:
         assert sensor.state == original_state
 
     def test_dispatcher_connect_called(self, mock_hass, mock_dispatcher_connect):
-        from custom_components.circadian_lighting import (
-            CIRCADIAN_LIGHTING_UPDATE_TOPIC,
-        )
-
         sensor, _ = self._make_sensor(mock_hass, mock_dispatcher_connect)
         mock_dispatcher_connect.assert_called_with(
             mock_hass, CIRCADIAN_LIGHTING_UPDATE_TOPIC, sensor.update_sensor
@@ -157,13 +137,8 @@ class TestColorTemperatureSensor:
 
 class TestBrightnessSensor:
     def _make_sensor(self, mock_hass, mock_dispatcher_connect):
-        from custom_components.circadian_lighting.sensor import (
-            CircadianLightBrightnessSensor,
-        )
-
-        cl = MagicMock()
+        cl = _make_cl_mock()
         cl.data = {"color_temp": 4500, "brightness": 80}
-        cl.update = MagicMock()
         return CircadianLightBrightnessSensor(mock_hass, cl), cl
 
     def test_name(self, mock_hass, mock_dispatcher_connect):
@@ -179,8 +154,6 @@ class TestBrightnessSensor:
         assert sensor.state == 80
 
     def test_unit_of_measurement(self, mock_hass, mock_dispatcher_connect):
-        from homeassistant.const import PERCENTAGE
-
         sensor, _ = self._make_sensor(mock_hass, mock_dispatcher_connect)
         assert sensor.unit_of_measurement == PERCENTAGE
 
@@ -203,10 +176,6 @@ class TestBrightnessSensor:
         assert sensor.state == original_state
 
     def test_dispatcher_connect_called(self, mock_hass, mock_dispatcher_connect):
-        from custom_components.circadian_lighting import (
-            CIRCADIAN_LIGHTING_UPDATE_TOPIC,
-        )
-
         sensor, _ = self._make_sensor(mock_hass, mock_dispatcher_connect)
         mock_dispatcher_connect.assert_called_with(
             mock_hass, CIRCADIAN_LIGHTING_UPDATE_TOPIC, sensor.update_sensor

@@ -5,6 +5,18 @@ from math import degrees, isclose, pi
 
 import pytest
 import voluptuous as vol
+from custom_components.circadian_lighting import (
+    CIRCADIAN_LIGHTING_PLATFORMS,
+    CIRCADIAN_LIGHTING_UPDATE_TOPIC,
+    CONFIG_SCHEMA,
+    DATA_CIRCADIAN_LIGHTING,
+    DEFAULT_INTERVAL,
+    DEFAULT_MAX_CT,
+    DEFAULT_MIN_CT,
+    DOMAIN,
+    CircadianLighting,
+    setup,
+)
 from tests.conftest import make_aware_dt
 
 # ---------------------------------------------------------------------------
@@ -14,36 +26,18 @@ from tests.conftest import make_aware_dt
 
 class TestConstants:
     def test_domain(self):
-        from custom_components.circadian_lighting import DOMAIN
-
         assert DOMAIN == "circadian_lighting"
 
     def test_data_key(self):
-        from custom_components.circadian_lighting import DATA_CIRCADIAN_LIGHTING
-
         assert DATA_CIRCADIAN_LIGHTING == "data_cl"
 
     def test_update_topic(self):
-        from custom_components.circadian_lighting import (
-            CIRCADIAN_LIGHTING_UPDATE_TOPIC,
-        )
-
         assert CIRCADIAN_LIGHTING_UPDATE_TOPIC == "circadian_lighting_update"
 
     def test_platforms(self):
-        from custom_components.circadian_lighting import (
-            CIRCADIAN_LIGHTING_PLATFORMS,
-        )
-
         assert CIRCADIAN_LIGHTING_PLATFORMS == ["sensor", "switch"]
 
     def test_default_values(self):
-        from custom_components.circadian_lighting import (
-            DEFAULT_INTERVAL,
-            DEFAULT_MAX_CT,
-            DEFAULT_MIN_CT,
-        )
-
         assert DEFAULT_MIN_CT == 2000
         assert DEFAULT_MAX_CT == 5500
         assert DEFAULT_INTERVAL == 60
@@ -56,13 +50,9 @@ class TestConstants:
 
 class TestConfigSchema:
     def _validate(self, domain_conf):
-        from custom_components.circadian_lighting import CONFIG_SCHEMA, DOMAIN
-
         return CONFIG_SCHEMA({DOMAIN: domain_conf})
 
     def test_defaults(self):
-        from custom_components.circadian_lighting import DOMAIN
-
         result = self._validate({})
         conf = result[DOMAIN]
         assert conf["min_colortemp"] == 2000
@@ -70,8 +60,6 @@ class TestConfigSchema:
         assert conf["interval"] == 60
 
     def test_custom_values(self):
-        from custom_components.circadian_lighting import DOMAIN
-
         result = self._validate(
             {
                 "min_colortemp": 3000,
@@ -89,8 +77,6 @@ class TestConfigSchema:
         assert conf["interval"] == 120
 
     def test_string_coercion(self):
-        from custom_components.circadian_lighting import DOMAIN
-
         result = self._validate({"min_colortemp": "3000"})
         assert result[DOMAIN]["min_colortemp"] == 3000
 
@@ -119,8 +105,6 @@ class TestConfigSchema:
             self._validate({"interval": -1})
 
     def test_extra_keys_allowed(self):
-        from custom_components.circadian_lighting import CONFIG_SCHEMA, DOMAIN
-
         result = CONFIG_SCHEMA({DOMAIN: {}, "other_integration": {"key": "val"}})
         assert "other_integration" in result
 
@@ -131,58 +115,34 @@ class TestConfigSchema:
 
 
 class TestSetup:
+    def _make_config(self, **overrides):
+        domain_conf = {
+            "min_colortemp": 2000,
+            "max_colortemp": 5500,
+            "latitude": 48.86,
+            "longitude": 2.35,
+            "interval": 60,
+        }
+        domain_conf.update(overrides)
+        return {DOMAIN: domain_conf}
+
     def test_returns_true(
         self, mock_hass, mock_dt, mock_load_platform, mock_dispatcher_send
     ):
-        from custom_components.circadian_lighting import DOMAIN, setup
-
-        config = {
-            DOMAIN: {
-                "min_colortemp": 2000,
-                "max_colortemp": 5500,
-                "latitude": 48.86,
-                "longitude": 2.35,
-                "interval": 60,
-            }
-        }
+        config = self._make_config()
         assert setup(mock_hass, config) is True
 
     def test_stores_in_hass_data(
         self, mock_hass, mock_dt, mock_load_platform, mock_dispatcher_send
     ):
-        from custom_components.circadian_lighting import (
-            DATA_CIRCADIAN_LIGHTING,
-            DOMAIN,
-            CircadianLighting,
-            setup,
-        )
-
-        config = {
-            DOMAIN: {
-                "min_colortemp": 2000,
-                "max_colortemp": 5500,
-                "latitude": 48.86,
-                "longitude": 2.35,
-                "interval": 60,
-            }
-        }
+        config = self._make_config()
         setup(mock_hass, config)
         assert isinstance(mock_hass.data[DATA_CIRCADIAN_LIGHTING], CircadianLighting)
 
     def test_calls_load_platform(
         self, mock_hass, mock_dt, mock_load_platform, mock_dispatcher_send
     ):
-        from custom_components.circadian_lighting import DOMAIN, setup
-
-        config = {
-            DOMAIN: {
-                "min_colortemp": 2000,
-                "max_colortemp": 5500,
-                "latitude": 48.86,
-                "longitude": 2.35,
-                "interval": 60,
-            }
-        }
+        config = self._make_config()
         setup(mock_hass, config)
         mock_load_platform.assert_called_once_with(
             mock_hass, "sensor", DOMAIN, {}, config
@@ -191,21 +151,7 @@ class TestSetup:
     def test_uses_config_lat_lon(
         self, mock_hass, mock_dt, mock_load_platform, mock_dispatcher_send
     ):
-        from custom_components.circadian_lighting import (
-            DATA_CIRCADIAN_LIGHTING,
-            DOMAIN,
-            setup,
-        )
-
-        config = {
-            DOMAIN: {
-                "min_colortemp": 2000,
-                "max_colortemp": 5500,
-                "latitude": 40.0,
-                "longitude": -74.0,
-                "interval": 60,
-            }
-        }
+        config = self._make_config(latitude=40.0, longitude=-74.0)
         setup(mock_hass, config)
         cl = mock_hass.data[DATA_CIRCADIAN_LIGHTING]
         assert cl.data["latitude"] == 40.0
@@ -214,12 +160,6 @@ class TestSetup:
     def test_falls_back_to_hass_config(
         self, mock_hass, mock_dt, mock_load_platform, mock_dispatcher_send
     ):
-        from custom_components.circadian_lighting import (
-            DATA_CIRCADIAN_LIGHTING,
-            DOMAIN,
-            setup,
-        )
-
         config = {
             DOMAIN: {"min_colortemp": 2000, "max_colortemp": 5500, "interval": 60}
         }
@@ -231,21 +171,7 @@ class TestSetup:
     def test_passes_min_max_colortemp(
         self, mock_hass, mock_dt, mock_load_platform, mock_dispatcher_send
     ):
-        from custom_components.circadian_lighting import (
-            DATA_CIRCADIAN_LIGHTING,
-            DOMAIN,
-            setup,
-        )
-
-        config = {
-            DOMAIN: {
-                "min_colortemp": 3000,
-                "max_colortemp": 7000,
-                "latitude": 48.86,
-                "longitude": 2.35,
-                "interval": 60,
-            }
-        }
+        config = self._make_config(min_colortemp=3000, max_colortemp=7000)
         setup(mock_hass, config)
         cl = mock_hass.data[DATA_CIRCADIAN_LIGHTING]
         assert cl.data["min_colortemp"] == 3000
@@ -254,21 +180,7 @@ class TestSetup:
     def test_passes_interval(
         self, mock_hass, mock_dt, mock_load_platform, mock_dispatcher_send
     ):
-        from custom_components.circadian_lighting import (
-            DATA_CIRCADIAN_LIGHTING,
-            DOMAIN,
-            setup,
-        )
-
-        config = {
-            DOMAIN: {
-                "min_colortemp": 2000,
-                "max_colortemp": 5500,
-                "latitude": 48.86,
-                "longitude": 2.35,
-                "interval": 120,
-            }
-        }
+        config = self._make_config(interval=120)
         setup(mock_hass, config)
         cl = mock_hass.data[DATA_CIRCADIAN_LIGHTING]
         assert cl.data["interval"] == 120
@@ -685,13 +597,19 @@ class TestPercentElevation:
         assert 0.8 < result <= 1.1  # near 1.0 at noon
 
     def test_percent_civil_twilight_at_upper_boundary(self, cl_factory, mock_dt):
-        cl = cl_factory()
-        # Use a mock elevation to test the formula directly
-        date = datetime.datetime(2024, 3, 21, 12, 0, 0)
-        # civil twilight: (elev - (-6)) / (-0.833 - (-6)) = (elev + 6) / 5.167
-        # Test formula outputs reasonable range
-        result = cl.percent_elevation_civil_twilight(date, 48.8566, 2.3522)
-        assert isinstance(result, float)
+        """Scan times around sunrise/sunset to find civil twilight and verify result."""
+        for hour, minute in [(5, 45), (5, 50), (5, 55), (19, 0), (19, 5), (19, 10)]:
+            mock_dt.now.return_value = make_aware_dt(
+                2024, 3, 21, hour, minute, 0, utc_offset_hours=1
+            )
+            cl = cl_factory()
+            date = datetime.datetime(2024, 3, 21, hour, minute, 0)
+            elev_deg = degrees(cl.elevation(date, 48.8566, 2.3522))
+            if -6 < elev_deg < -0.833:
+                result = cl.percent_elevation_civil_twilight(date, 48.8566, 2.3522)
+                assert 0 <= result <= 1
+                return
+        pytest.fail("No candidate time fell within civil twilight band")
 
     def test_percent_nautical_twilight_formula(self, cl_factory, mock_dt):
         cl = cl_factory()
@@ -711,29 +629,35 @@ class TestPercentElevation:
 
     def test_percent_civil_twilight_during_twilight(self, cl_factory, mock_dt):
         """During civil twilight, value should be in [0,1]."""
-        # Use a time when elevation is between -6 and -0.833
-        # Early morning before sunrise
-        mock_dt.now.return_value = make_aware_dt(
-            2024, 3, 21, 5, 30, 0, utc_offset_hours=1
-        )
-        cl = cl_factory()
-        date = datetime.datetime(2024, 3, 21, 5, 30, 0)
-        elev_deg = degrees(cl.elevation(date, 48.8566, 2.3522))
-        if -6 < elev_deg < -0.833:
-            result = cl.percent_elevation_civil_twilight(date, 48.8566, 2.3522)
-            assert 0 <= result <= 1
+        # Scan times around sunrise/sunset to find civil twilight
+        for hour, minute in [(5, 45), (5, 50), (5, 55), (19, 0), (19, 5), (19, 10)]:
+            mock_dt.now.return_value = make_aware_dt(
+                2024, 3, 21, hour, minute, 0, utc_offset_hours=1
+            )
+            cl = cl_factory()
+            date = datetime.datetime(2024, 3, 21, hour, minute, 0)
+            elev_deg = degrees(cl.elevation(date, 48.8566, 2.3522))
+            if -6 < elev_deg < -0.833:
+                result = cl.percent_elevation_civil_twilight(date, 48.8566, 2.3522)
+                assert 0 <= result <= 1
+                return
+        pytest.fail("No candidate time fell within civil twilight band")
 
     def test_percent_nautical_twilight_during_twilight(self, cl_factory, mock_dt):
         """During nautical twilight, value should be in [0,1]."""
-        mock_dt.now.return_value = make_aware_dt(
-            2024, 3, 21, 4, 30, 0, utc_offset_hours=1
-        )
-        cl = cl_factory()
-        date = datetime.datetime(2024, 3, 21, 4, 30, 0)
-        elev_deg = degrees(cl.elevation(date, 48.8566, 2.3522))
-        if -12 < elev_deg < -6:
-            result = cl.percent_elevation_nautical_twilight(date, 48.8566, 2.3522)
-            assert 0 <= result <= 1
+        # Scan times to find nautical twilight
+        for hour, minute in [(4, 30), (4, 45), (5, 0), (5, 15), (20, 0), (20, 15)]:
+            mock_dt.now.return_value = make_aware_dt(
+                2024, 3, 21, hour, minute, 0, utc_offset_hours=1
+            )
+            cl = cl_factory()
+            date = datetime.datetime(2024, 3, 21, hour, minute, 0)
+            elev_deg = degrees(cl.elevation(date, 48.8566, 2.3522))
+            if -12 < elev_deg < -6:
+                result = cl.percent_elevation_nautical_twilight(date, 48.8566, 2.3522)
+                assert 0 <= result <= 1
+                return
+        pytest.fail("No candidate time fell within nautical twilight band")
 
 
 # ---------------------------------------------------------------------------
@@ -780,9 +704,7 @@ class TestColorTemp:
                 result = cl.color_temp()
                 assert 2000 <= result <= 3000
                 return
-        # If we didn't find a twilight time, at least verify the method runs
-        cl = cl_factory()
-        assert isinstance(cl.color_temp(), int)
+        pytest.fail("No candidate time fell within civil twilight band")
 
     def test_returns_int(self, cl_factory, mock_dt):
         cl = cl_factory()
@@ -828,8 +750,7 @@ class TestBrightness:
                 result = cl.brightness()
                 assert 50 <= result <= 100
                 return
-        cl = cl_factory()
-        assert isinstance(cl.brightness(), int)
+        pytest.fail("No candidate time fell within nautical twilight band")
 
     def test_returns_int(self, cl_factory, mock_dt):
         cl = cl_factory()
@@ -852,10 +773,6 @@ class TestUpdate:
         assert cl.data["color_temp"] == 2000
 
     def test_calls_dispatcher(self, cl_factory, mock_dt, mock_dispatcher_send):
-        from custom_components.circadian_lighting import (
-            CIRCADIAN_LIGHTING_UPDATE_TOPIC,
-        )
-
         cl = cl_factory()
         mock_dispatcher_send.reset_mock()
         cl._update()
