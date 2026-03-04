@@ -59,9 +59,7 @@ def cl_factory(mock_hass, mock_dt, mock_dispatcher_send):
     """Factory to create CircadianLighting instances with controlled time."""
     from custom_components.circadian_lighting import CircadianLighting
 
-    def create(
-        min_ct=2000, max_ct=5500, lat=48.8566, lon=2.3522, interval=60
-    ):
+    def create(min_ct=2000, max_ct=5500, lat=48.8566, lon=2.3522, interval=60):
         return CircadianLighting(mock_hass, min_ct, max_ct, lat, lon, interval)
 
     return create

@@ -1,47 +1,49 @@
 """Tests for custom_components.circadian_lighting.__init__."""
 
 import datetime
-from datetime import timedelta, timezone
-from math import degrees, isclose, pi, radians
-from unittest.mock import patch
+from math import degrees, isclose, pi
 
 import pytest
 import voluptuous as vol
-
 from tests.conftest import make_aware_dt
-
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
+
 class TestConstants:
     def test_domain(self):
         from custom_components.circadian_lighting import DOMAIN
+
         assert DOMAIN == "circadian_lighting"
 
     def test_data_key(self):
         from custom_components.circadian_lighting import DATA_CIRCADIAN_LIGHTING
+
         assert DATA_CIRCADIAN_LIGHTING == "data_cl"
 
     def test_update_topic(self):
         from custom_components.circadian_lighting import (
             CIRCADIAN_LIGHTING_UPDATE_TOPIC,
         )
+
         assert CIRCADIAN_LIGHTING_UPDATE_TOPIC == "circadian_lighting_update"
 
     def test_platforms(self):
         from custom_components.circadian_lighting import (
             CIRCADIAN_LIGHTING_PLATFORMS,
         )
+
         assert CIRCADIAN_LIGHTING_PLATFORMS == ["sensor", "switch"]
 
     def test_default_values(self):
         from custom_components.circadian_lighting import (
-            DEFAULT_MIN_CT,
-            DEFAULT_MAX_CT,
             DEFAULT_INTERVAL,
+            DEFAULT_MAX_CT,
+            DEFAULT_MIN_CT,
         )
+
         assert DEFAULT_MIN_CT == 2000
         assert DEFAULT_MAX_CT == 5500
         assert DEFAULT_INTERVAL == 60
@@ -51,13 +53,16 @@ class TestConstants:
 # Config Schema
 # ---------------------------------------------------------------------------
 
+
 class TestConfigSchema:
     def _validate(self, domain_conf):
         from custom_components.circadian_lighting import CONFIG_SCHEMA, DOMAIN
+
         return CONFIG_SCHEMA({DOMAIN: domain_conf})
 
     def test_defaults(self):
         from custom_components.circadian_lighting import DOMAIN
+
         result = self._validate({})
         conf = result[DOMAIN]
         assert conf["min_colortemp"] == 2000
@@ -66,13 +71,16 @@ class TestConfigSchema:
 
     def test_custom_values(self):
         from custom_components.circadian_lighting import DOMAIN
-        result = self._validate({
-            "min_colortemp": 3000,
-            "max_colortemp": 6500,
-            "latitude": 40.0,
-            "longitude": -74.0,
-            "interval": 120,
-        })
+
+        result = self._validate(
+            {
+                "min_colortemp": 3000,
+                "max_colortemp": 6500,
+                "latitude": 40.0,
+                "longitude": -74.0,
+                "interval": 120,
+            }
+        )
         conf = result[DOMAIN]
         assert conf["min_colortemp"] == 3000
         assert conf["max_colortemp"] == 6500
@@ -82,6 +90,7 @@ class TestConfigSchema:
 
     def test_string_coercion(self):
         from custom_components.circadian_lighting import DOMAIN
+
         result = self._validate({"min_colortemp": "3000"})
         assert result[DOMAIN]["min_colortemp"] == 3000
 
@@ -111,6 +120,7 @@ class TestConfigSchema:
 
     def test_extra_keys_allowed(self):
         from custom_components.circadian_lighting import CONFIG_SCHEMA, DOMAIN
+
         result = CONFIG_SCHEMA({DOMAIN: {}, "other_integration": {"key": "val"}})
         assert "other_integration" in result
 
@@ -119,70 +129,146 @@ class TestConfigSchema:
 # setup()
 # ---------------------------------------------------------------------------
 
+
 class TestSetup:
-    def test_returns_true(self, mock_hass, mock_dt, mock_load_platform, mock_dispatcher_send):
+    def test_returns_true(
+        self, mock_hass, mock_dt, mock_load_platform, mock_dispatcher_send
+    ):
         from custom_components.circadian_lighting import DOMAIN, setup
-        config = {DOMAIN: {"min_colortemp": 2000, "max_colortemp": 5500,
-                           "latitude": 48.86, "longitude": 2.35, "interval": 60}}
+
+        config = {
+            DOMAIN: {
+                "min_colortemp": 2000,
+                "max_colortemp": 5500,
+                "latitude": 48.86,
+                "longitude": 2.35,
+                "interval": 60,
+            }
+        }
         assert setup(mock_hass, config) is True
 
-    def test_stores_in_hass_data(self, mock_hass, mock_dt, mock_load_platform, mock_dispatcher_send):
+    def test_stores_in_hass_data(
+        self, mock_hass, mock_dt, mock_load_platform, mock_dispatcher_send
+    ):
         from custom_components.circadian_lighting import (
-            CircadianLighting, DATA_CIRCADIAN_LIGHTING, DOMAIN, setup,
+            DATA_CIRCADIAN_LIGHTING,
+            DOMAIN,
+            CircadianLighting,
+            setup,
         )
-        config = {DOMAIN: {"min_colortemp": 2000, "max_colortemp": 5500,
-                           "latitude": 48.86, "longitude": 2.35, "interval": 60}}
+
+        config = {
+            DOMAIN: {
+                "min_colortemp": 2000,
+                "max_colortemp": 5500,
+                "latitude": 48.86,
+                "longitude": 2.35,
+                "interval": 60,
+            }
+        }
         setup(mock_hass, config)
         assert isinstance(mock_hass.data[DATA_CIRCADIAN_LIGHTING], CircadianLighting)
 
-    def test_calls_load_platform(self, mock_hass, mock_dt, mock_load_platform, mock_dispatcher_send):
+    def test_calls_load_platform(
+        self, mock_hass, mock_dt, mock_load_platform, mock_dispatcher_send
+    ):
         from custom_components.circadian_lighting import DOMAIN, setup
-        config = {DOMAIN: {"min_colortemp": 2000, "max_colortemp": 5500,
-                           "latitude": 48.86, "longitude": 2.35, "interval": 60}}
+
+        config = {
+            DOMAIN: {
+                "min_colortemp": 2000,
+                "max_colortemp": 5500,
+                "latitude": 48.86,
+                "longitude": 2.35,
+                "interval": 60,
+            }
+        }
         setup(mock_hass, config)
         mock_load_platform.assert_called_once_with(
             mock_hass, "sensor", DOMAIN, {}, config
         )
 
-    def test_uses_config_lat_lon(self, mock_hass, mock_dt, mock_load_platform, mock_dispatcher_send):
+    def test_uses_config_lat_lon(
+        self, mock_hass, mock_dt, mock_load_platform, mock_dispatcher_send
+    ):
         from custom_components.circadian_lighting import (
-            DATA_CIRCADIAN_LIGHTING, DOMAIN, setup,
+            DATA_CIRCADIAN_LIGHTING,
+            DOMAIN,
+            setup,
         )
-        config = {DOMAIN: {"min_colortemp": 2000, "max_colortemp": 5500,
-                           "latitude": 40.0, "longitude": -74.0, "interval": 60}}
+
+        config = {
+            DOMAIN: {
+                "min_colortemp": 2000,
+                "max_colortemp": 5500,
+                "latitude": 40.0,
+                "longitude": -74.0,
+                "interval": 60,
+            }
+        }
         setup(mock_hass, config)
         cl = mock_hass.data[DATA_CIRCADIAN_LIGHTING]
         assert cl.data["latitude"] == 40.0
         assert cl.data["longitude"] == -74.0
 
-    def test_falls_back_to_hass_config(self, mock_hass, mock_dt, mock_load_platform, mock_dispatcher_send):
+    def test_falls_back_to_hass_config(
+        self, mock_hass, mock_dt, mock_load_platform, mock_dispatcher_send
+    ):
         from custom_components.circadian_lighting import (
-            DATA_CIRCADIAN_LIGHTING, DOMAIN, setup,
+            DATA_CIRCADIAN_LIGHTING,
+            DOMAIN,
+            setup,
         )
-        config = {DOMAIN: {"min_colortemp": 2000, "max_colortemp": 5500,
-                           "interval": 60}}
+
+        config = {
+            DOMAIN: {"min_colortemp": 2000, "max_colortemp": 5500, "interval": 60}
+        }
         setup(mock_hass, config)
         cl = mock_hass.data[DATA_CIRCADIAN_LIGHTING]
         assert cl.data["latitude"] == mock_hass.config.latitude
         assert cl.data["longitude"] == mock_hass.config.longitude
 
-    def test_passes_min_max_colortemp(self, mock_hass, mock_dt, mock_load_platform, mock_dispatcher_send):
+    def test_passes_min_max_colortemp(
+        self, mock_hass, mock_dt, mock_load_platform, mock_dispatcher_send
+    ):
         from custom_components.circadian_lighting import (
-            DATA_CIRCADIAN_LIGHTING, DOMAIN, setup,
+            DATA_CIRCADIAN_LIGHTING,
+            DOMAIN,
+            setup,
         )
-        config = {DOMAIN: {"min_colortemp": 3000, "max_colortemp": 7000,
-                           "latitude": 48.86, "longitude": 2.35, "interval": 60}}
+
+        config = {
+            DOMAIN: {
+                "min_colortemp": 3000,
+                "max_colortemp": 7000,
+                "latitude": 48.86,
+                "longitude": 2.35,
+                "interval": 60,
+            }
+        }
         setup(mock_hass, config)
         cl = mock_hass.data[DATA_CIRCADIAN_LIGHTING]
         assert cl.data["min_colortemp"] == 3000
         assert cl.data["max_colortemp"] == 7000
 
-    def test_passes_interval(self, mock_hass, mock_dt, mock_load_platform, mock_dispatcher_send):
+    def test_passes_interval(
+        self, mock_hass, mock_dt, mock_load_platform, mock_dispatcher_send
+    ):
         from custom_components.circadian_lighting import (
-            DATA_CIRCADIAN_LIGHTING, DOMAIN, setup,
+            DATA_CIRCADIAN_LIGHTING,
+            DOMAIN,
+            setup,
         )
-        config = {DOMAIN: {"min_colortemp": 2000, "max_colortemp": 5500,
-                           "latitude": 48.86, "longitude": 2.35, "interval": 120}}
+
+        config = {
+            DOMAIN: {
+                "min_colortemp": 2000,
+                "max_colortemp": 5500,
+                "latitude": 48.86,
+                "longitude": 2.35,
+                "interval": 120,
+            }
+        }
         setup(mock_hass, config)
         cl = mock_hass.data[DATA_CIRCADIAN_LIGHTING]
         assert cl.data["interval"] == 120
@@ -191,6 +277,7 @@ class TestSetup:
 # ---------------------------------------------------------------------------
 # CircadianLighting.__init__
 # ---------------------------------------------------------------------------
+
 
 class TestCircadianLightingInit:
     def test_stores_config(self, cl_factory):
@@ -223,6 +310,7 @@ class TestCircadianLightingInit:
 # fractional_year
 # ---------------------------------------------------------------------------
 
+
 class TestFractionalYear:
     def test_non_leap_year(self, cl_factory):
         cl = cl_factory()
@@ -253,6 +341,7 @@ class TestFractionalYear:
 # ---------------------------------------------------------------------------
 # eqtime / decl
 # ---------------------------------------------------------------------------
+
 
 class TestEqtimeDecl:
     def test_eqtime_equinox(self, cl_factory):
@@ -295,6 +384,7 @@ class TestEqtimeDecl:
 # ---------------------------------------------------------------------------
 # time_offset / tst / ha
 # ---------------------------------------------------------------------------
+
 
 class TestTimeOffsetTstHa:
     def test_time_offset_utc_plus_1(self, cl_factory, mock_dt):
@@ -340,6 +430,7 @@ class TestTimeOffsetTstHa:
 # elevation / zenith
 # ---------------------------------------------------------------------------
 
+
 class TestElevationZenith:
     def test_zenith_plus_elevation_equals_90(self, cl_factory, mock_dt):
         cl = cl_factory()
@@ -374,6 +465,7 @@ class TestElevationZenith:
 # ha_sunset / ha_sunrise
 # ---------------------------------------------------------------------------
 
+
 class TestHaSunsetSunrise:
     def test_sunrise_is_negative_sunset(self, cl_factory, mock_dt):
         cl = cl_factory()
@@ -404,6 +496,7 @@ class TestHaSunsetSunrise:
 # ---------------------------------------------------------------------------
 # sunrise / sunset / solar_noon / solar_midnight
 # ---------------------------------------------------------------------------
+
 
 class TestSunriseSunsetNoonMidnight:
     def test_sunrise_before_sunset(self, cl_factory, mock_dt):
@@ -441,12 +534,15 @@ class TestSunriseSunsetNoonMidnight:
         cl = cl_factory()
         equinox = datetime.datetime(2024, 3, 20, 12, 0, 0)
         summer = datetime.datetime(2024, 6, 21, 12, 0, 0)
-        assert cl.sunrise(summer, 48.8566, 2.3522) < cl.sunrise(equinox, 48.8566, 2.3522)
+        assert cl.sunrise(summer, 48.8566, 2.3522) < cl.sunrise(
+            equinox, 48.8566, 2.3522
+        )
 
 
 # ---------------------------------------------------------------------------
 # solar_noon_elevation / solar_midnight_elevation
 # ---------------------------------------------------------------------------
+
 
 class TestSolarNoonMidnightElevation:
     def test_noon_elevation_positive(self, cl_factory, mock_dt):
@@ -474,6 +570,7 @@ class TestSolarNoonMidnightElevation:
 # azimuth — 9 reachable branches
 # ---------------------------------------------------------------------------
 
+
 class TestAzimuth:
     """Test all 9 reachable branches of azimuth().
 
@@ -490,21 +587,27 @@ class TestAzimuth:
 
     # Branch A: midnight>0 AND noon<1440 (Paris, UTC+1)
     def test_branch_a1_before_both(self, cl_factory, mock_dt):
-        mock_dt.now.return_value = make_aware_dt(2024, 3, 21, 0, 1, 0, utc_offset_hours=1)
+        mock_dt.now.return_value = make_aware_dt(
+            2024, 3, 21, 0, 1, 0, utc_offset_hours=1
+        )
         cl = cl_factory(lat=48.8566, lon=2.3522)
         date = datetime.datetime(2024, 3, 21, 0, 1, 0)
         result = cl.azimuth(date, 48.8566, 2.3522)
         self._assert_valid_azimuth(result)
 
     def test_branch_a2_after_midnight_before_noon(self, cl_factory, mock_dt):
-        mock_dt.now.return_value = make_aware_dt(2024, 3, 21, 6, 0, 0, utc_offset_hours=1)
+        mock_dt.now.return_value = make_aware_dt(
+            2024, 3, 21, 6, 0, 0, utc_offset_hours=1
+        )
         cl = cl_factory(lat=48.8566, lon=2.3522)
         date = datetime.datetime(2024, 3, 21, 6, 0, 0)
         result = cl.azimuth(date, 48.8566, 2.3522)
         self._assert_valid_azimuth(result)
 
     def test_branch_a3_after_both(self, cl_factory, mock_dt):
-        mock_dt.now.return_value = make_aware_dt(2024, 3, 21, 18, 0, 0, utc_offset_hours=1)
+        mock_dt.now.return_value = make_aware_dt(
+            2024, 3, 21, 18, 0, 0, utc_offset_hours=1
+        )
         cl = cl_factory(lat=48.8566, lon=2.3522)
         date = datetime.datetime(2024, 3, 21, 18, 0, 0)
         result = cl.azimuth(date, 48.8566, 2.3522)
@@ -512,21 +615,27 @@ class TestAzimuth:
 
     # Branch B: midnight<=0 AND noon<1440 (lon=30, UTC+0)
     def test_branch_b1_before_both(self, cl_factory, mock_dt):
-        mock_dt.now.return_value = make_aware_dt(2024, 3, 21, 1, 0, 0, utc_offset_hours=0)
+        mock_dt.now.return_value = make_aware_dt(
+            2024, 3, 21, 1, 0, 0, utc_offset_hours=0
+        )
         cl = cl_factory(lat=48.8566, lon=30.0)
         date = datetime.datetime(2024, 3, 21, 1, 0, 0)
         result = cl.azimuth(date, 48.8566, 30.0)
         self._assert_valid_azimuth(result)
 
     def test_branch_b2_before_midnight_after_noon(self, cl_factory, mock_dt):
-        mock_dt.now.return_value = make_aware_dt(2024, 3, 21, 11, 0, 0, utc_offset_hours=0)
+        mock_dt.now.return_value = make_aware_dt(
+            2024, 3, 21, 11, 0, 0, utc_offset_hours=0
+        )
         cl = cl_factory(lat=48.8566, lon=30.0)
         date = datetime.datetime(2024, 3, 21, 11, 0, 0)
         result = cl.azimuth(date, 48.8566, 30.0)
         self._assert_valid_azimuth(result)
 
     def test_branch_b3_after_both(self, cl_factory, mock_dt):
-        mock_dt.now.return_value = make_aware_dt(2024, 3, 21, 23, 0, 0, utc_offset_hours=0)
+        mock_dt.now.return_value = make_aware_dt(
+            2024, 3, 21, 23, 0, 0, utc_offset_hours=0
+        )
         cl = cl_factory(lat=48.8566, lon=30.0)
         date = datetime.datetime(2024, 3, 21, 23, 0, 0)
         result = cl.azimuth(date, 48.8566, 30.0)
@@ -536,21 +645,27 @@ class TestAzimuth:
     # Create CL with normal lon, then call azimuth() with extreme lon
     # (lon=-180 crashes __init__ because solar_noon > 24h overflows datetime)
     def test_branch_c1_before_both(self, cl_factory, mock_dt):
-        mock_dt.now.return_value = make_aware_dt(2024, 3, 21, 0, 1, 0, utc_offset_hours=0)
+        mock_dt.now.return_value = make_aware_dt(
+            2024, 3, 21, 0, 1, 0, utc_offset_hours=0
+        )
         cl = cl_factory(lat=48.8566, lon=2.3522)
         date = datetime.datetime(2024, 3, 21, 0, 1, 0)
         result = cl.azimuth(date, 48.8566, -180.0)
         self._assert_valid_azimuth(result)
 
     def test_branch_c2_before_midnight_after_noon(self, cl_factory, mock_dt):
-        mock_dt.now.return_value = make_aware_dt(2024, 3, 21, 0, 30, 0, utc_offset_hours=0)
+        mock_dt.now.return_value = make_aware_dt(
+            2024, 3, 21, 0, 30, 0, utc_offset_hours=0
+        )
         cl = cl_factory(lat=48.8566, lon=2.3522)
         date = datetime.datetime(2024, 3, 21, 0, 30, 0)
         result = cl.azimuth(date, 48.8566, -180.0)
         self._assert_valid_azimuth(result)
 
     def test_branch_c3_after_both(self, cl_factory, mock_dt):
-        mock_dt.now.return_value = make_aware_dt(2024, 3, 21, 14, 0, 0, utc_offset_hours=0)
+        mock_dt.now.return_value = make_aware_dt(
+            2024, 3, 21, 14, 0, 0, utc_offset_hours=0
+        )
         cl = cl_factory(lat=48.8566, lon=2.3522)
         date = datetime.datetime(2024, 3, 21, 14, 0, 0)
         result = cl.azimuth(date, 48.8566, -180.0)
@@ -560,6 +675,7 @@ class TestAzimuth:
 # ---------------------------------------------------------------------------
 # percent elevation methods
 # ---------------------------------------------------------------------------
+
 
 class TestPercentElevation:
     def test_percent_day_at_noon(self, cl_factory, mock_dt):
@@ -585,7 +701,9 @@ class TestPercentElevation:
 
     def test_percent_day_intermediate(self, cl_factory, mock_dt):
         """Morning elevation gives a value between 0 and 1."""
-        mock_dt.now.return_value = make_aware_dt(2024, 3, 21, 9, 0, 0, utc_offset_hours=1)
+        mock_dt.now.return_value = make_aware_dt(
+            2024, 3, 21, 9, 0, 0, utc_offset_hours=1
+        )
         cl = cl_factory()
         date = datetime.datetime(2024, 3, 21, 9, 0, 0)
         result = cl.percent_elevation_day(date, 48.8566, 2.3522)
@@ -595,7 +713,9 @@ class TestPercentElevation:
         """During civil twilight, value should be in [0,1]."""
         # Use a time when elevation is between -6 and -0.833
         # Early morning before sunrise
-        mock_dt.now.return_value = make_aware_dt(2024, 3, 21, 5, 30, 0, utc_offset_hours=1)
+        mock_dt.now.return_value = make_aware_dt(
+            2024, 3, 21, 5, 30, 0, utc_offset_hours=1
+        )
         cl = cl_factory()
         date = datetime.datetime(2024, 3, 21, 5, 30, 0)
         elev_deg = degrees(cl.elevation(date, 48.8566, 2.3522))
@@ -605,7 +725,9 @@ class TestPercentElevation:
 
     def test_percent_nautical_twilight_during_twilight(self, cl_factory, mock_dt):
         """During nautical twilight, value should be in [0,1]."""
-        mock_dt.now.return_value = make_aware_dt(2024, 3, 21, 4, 30, 0, utc_offset_hours=1)
+        mock_dt.now.return_value = make_aware_dt(
+            2024, 3, 21, 4, 30, 0, utc_offset_hours=1
+        )
         cl = cl_factory()
         date = datetime.datetime(2024, 3, 21, 4, 30, 0)
         elev_deg = degrees(cl.elevation(date, 48.8566, 2.3522))
@@ -618,17 +740,22 @@ class TestPercentElevation:
 # color_temp
 # ---------------------------------------------------------------------------
 
+
 class TestColorTemp:
     def test_daytime_range(self, cl_factory, mock_dt):
         """Noon -> elevation well above -0.833 -> 3000-5500K."""
-        mock_dt.now.return_value = make_aware_dt(2024, 6, 21, 12, 0, 0, utc_offset_hours=1)
+        mock_dt.now.return_value = make_aware_dt(
+            2024, 6, 21, 12, 0, 0, utc_offset_hours=1
+        )
         cl = cl_factory()
         result = cl.color_temp()
         assert 3000 <= result <= 5500
 
     def test_night_returns_2000(self, cl_factory, mock_dt):
         """Deep night -> elevation <= -6 -> 2000K."""
-        mock_dt.now.return_value = make_aware_dt(2024, 3, 21, 1, 0, 0, utc_offset_hours=1)
+        mock_dt.now.return_value = make_aware_dt(
+            2024, 3, 21, 1, 0, 0, utc_offset_hours=1
+        )
         cl = cl_factory()
         result = cl.color_temp()
         assert result == 2000
@@ -645,7 +772,8 @@ class TestColorTemp:
             elev = degrees(
                 cl.elevation(
                     mock_dt.now.return_value.replace(tzinfo=None),
-                    48.8566, 2.3522,
+                    48.8566,
+                    2.3522,
                 )
             )
             if -6 < elev <= -0.833:
@@ -665,14 +793,19 @@ class TestColorTemp:
 # brightness
 # ---------------------------------------------------------------------------
 
+
 class TestBrightness:
     def test_daytime_returns_100(self, cl_factory, mock_dt):
-        mock_dt.now.return_value = make_aware_dt(2024, 6, 21, 12, 0, 0, utc_offset_hours=1)
+        mock_dt.now.return_value = make_aware_dt(
+            2024, 6, 21, 12, 0, 0, utc_offset_hours=1
+        )
         cl = cl_factory()
         assert cl.brightness() == 100
 
     def test_deep_night_returns_50(self, cl_factory, mock_dt):
-        mock_dt.now.return_value = make_aware_dt(2024, 3, 21, 1, 0, 0, utc_offset_hours=1)
+        mock_dt.now.return_value = make_aware_dt(
+            2024, 3, 21, 1, 0, 0, utc_offset_hours=1
+        )
         cl = cl_factory()
         result = cl.brightness()
         assert result == 50
@@ -687,7 +820,8 @@ class TestBrightness:
             elev = degrees(
                 cl.elevation(
                     datetime.datetime(2024, 3, 21, hour, minute, 0),
-                    48.8566, 2.3522,
+                    48.8566,
+                    2.3522,
                 )
             )
             if -12 < elev <= -6:
@@ -706,11 +840,13 @@ class TestBrightness:
 # _update
 # ---------------------------------------------------------------------------
 
+
 class TestUpdate:
     def test_recalculates_values(self, cl_factory, mock_dt, mock_dispatcher_send):
         cl = cl_factory()
-        old_ct = cl.data["color_temp"]
-        mock_dt.now.return_value = make_aware_dt(2024, 3, 21, 1, 0, 0, utc_offset_hours=1)
+        mock_dt.now.return_value = make_aware_dt(
+            2024, 3, 21, 1, 0, 0, utc_offset_hours=1
+        )
         cl._update()
         # Night time should give 2000K
         assert cl.data["color_temp"] == 2000
@@ -719,6 +855,7 @@ class TestUpdate:
         from custom_components.circadian_lighting import (
             CIRCADIAN_LIGHTING_UPDATE_TOPIC,
         )
+
         cl = cl_factory()
         mock_dispatcher_send.reset_mock()
         cl._update()
@@ -728,7 +865,9 @@ class TestUpdate:
 
     def test_update_brightness(self, cl_factory, mock_dt, mock_dispatcher_send):
         cl = cl_factory()
-        mock_dt.now.return_value = make_aware_dt(2024, 3, 21, 1, 0, 0, utc_offset_hours=1)
+        mock_dt.now.return_value = make_aware_dt(
+            2024, 3, 21, 1, 0, 0, utc_offset_hours=1
+        )
         cl._update()
         assert cl.data["brightness"] == 50
 

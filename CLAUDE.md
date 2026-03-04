@@ -17,9 +17,9 @@ pytest -k "spring_equinox" -s                 # run a single date scenario
 ```
 Coverage reports are generated automatically (terminal + `coverage.xml`). Branch coverage is enabled. Tests live in `tests/` and mock `dt.now()` and HA dispatcher/platform internals via fixtures in `tests/conftest.py`.
 
-**Linting** is handled by MegaLinter in CI. To run locally:
+**Linting** is handled by MegaLinter in CI. To run locally (auto-fixes and updated-sources reporter are disabled because `git diff` crashes with SIGBUS inside Docker Desktop macOS volume mounts):
 ```bash
-docker run --rm -v "$(pwd):/tmp/lint" oxsecurity/megalinter:v9
+rm -rf megalinter-reports/ && docker run --rm -v "$(pwd):/tmp/lint" -e APPLY_FIXES=none -e UPDATED_SOURCES_REPORTER=false oxsecurity/megalinter:v9
 ```
 
 **CI validation workflows** (all run in GitHub Actions):
@@ -47,18 +47,20 @@ All source code lives in `custom_components/circadian_lighting/`.
 - Notifies sensors via `dispatcher_send` on the `circadian_lighting_update` topic.
 
 ### `sensor.py` — Sensor entities
-- `CircadianLightColorTemperatureSensor` and `CircadianLightBrightnessSensor` — both extend `homeassistant.helpers.entity.Entity`.
-- Listen for dispatcher updates and also implement `update()` which triggers the throttled recalculation.
+- `CircadianLightSensorBase`: Abstract base class extending `homeassistant.helpers.entity.Entity`. Subclasses declare `_data_key`, `_attr_name`, `_attr_entity_id`, and `_attr_unit` as class attributes.
+- `CircadianLightColorTemperatureSensor` and `CircadianLightBrightnessSensor` — thin subclasses that only set the four class attributes above.
+- Sensors listen for dispatcher updates and implement `update()` which triggers the throttled recalculation.
 - Registers the `circadian_lighting.values_update` service for manual refresh.
 
 ### Configuration (via `configuration.yaml`)
-| Key | Default | Range |
-|-----|---------|-------|
-| `min_colortemp` | 2000 | 1000–10000 |
-| `max_colortemp` | 5500 | 1000–10000 |
-| `latitude` | HA latitude | valid lat |
-| `longitude` | HA longitude | valid lon |
-| `interval` | 60 (seconds) | positive int |
+
+| Key             | Default      | Range        |
+|-----------------|--------------|--------------|
+| `min_colortemp` | 2000         | 1000–10000   |
+| `max_colortemp` | 5500         | 1000–10000   |
+| `latitude`      | HA latitude  | valid lat    |
+| `longitude`     | HA longitude | valid lon    |
+| `interval`      | 60 (seconds) | positive int |
 
 ## Key Conventions
 

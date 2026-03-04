@@ -1,17 +1,17 @@
 """The circadian lighting integration."""
 
-import voluptuous as vol
-import homeassistant.helpers.config_validation as cv
-from homeassistant.const import CONF_LATITUDE, CONF_LONGITUDE
-from homeassistant.util import Throttle, dt
-from homeassistant.helpers.discovery import load_platform
-from homeassistant.helpers.dispatcher import dispatcher_send
-from datetime import timedelta
 import calendar
 import datetime
-from math import pi, sin, cos, tan, asin, acos, degrees, radians, modf, floor
 import logging
+from datetime import timedelta
+from math import acos, asin, cos, degrees, floor, modf, pi, radians, sin, tan
 
+import homeassistant.helpers.config_validation as cv
+import voluptuous as vol
+from homeassistant.const import CONF_LATITUDE, CONF_LONGITUDE
+from homeassistant.helpers.discovery import load_platform
+from homeassistant.helpers.dispatcher import dispatcher_send
+from homeassistant.util import Throttle, dt
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -39,9 +39,7 @@ CONFIG_SCHEMA = vol.Schema(
                 ),
                 vol.Optional(CONF_LATITUDE): cv.latitude,
                 vol.Optional(CONF_LONGITUDE): cv.longitude,
-                vol.Optional(
-                    CONF_INTERVAL, default=DEFAULT_INTERVAL
-                ): cv.positive_int,
+                vol.Optional(CONF_INTERVAL, default=DEFAULT_INTERVAL): cv.positive_int,
             }
         ),
     },
@@ -95,22 +93,14 @@ class CircadianLighting(object):
                 2
                 * pi
                 / 366
-                * (
-                    date.timetuple().tm_yday
-                    - 1
-                    + (date.timetuple().tm_hour - 12) / 24
-                )
+                * (date.timetuple().tm_yday - 1 + (date.timetuple().tm_hour - 12) / 24)
             )
         else:
             fractional_year = (
                 2
                 * pi
                 / 365
-                * (
-                    date.timetuple().tm_yday
-                    - 1
-                    + (date.timetuple().tm_hour - 12) / 24
-                )
+                * (date.timetuple().tm_yday - 1 + (date.timetuple().tm_hour - 12) / 24)
             )
         return fractional_year
 
@@ -179,8 +169,7 @@ class CircadianLighting(object):
         """Compute the hour angle of the sunset."""
         return degrees(
             acos(
-                cos(radians(90.833))
-                / (cos(radians(latitude)) * cos(self.decl(date)))
+                cos(radians(90.833)) / (cos(radians(latitude)) * cos(self.decl(date)))
                 - (tan(radians(latitude)) * tan(self.decl(date)))
             )
         )
@@ -189,8 +178,7 @@ class CircadianLighting(object):
         """Compute the hour angle of the sunrise."""
         return degrees(
             -acos(
-                cos(radians(90.833))
-                / (cos(radians(latitude)) * cos(self.decl(date)))
+                cos(radians(90.833)) / (cos(radians(latitude)) * cos(self.decl(date)))
                 - (tan(radians(latitude)) * tan(self.decl(date)))
             )
         )
@@ -265,6 +253,7 @@ class CircadianLighting(object):
         noon1440 = noon < 1440
         before_midnight = (date_seconds - midnight % 1440) < 0
         before_noon = (date_seconds - noon % 1440) < 0
+        azimuth = 0.0
         if midnight0 and noon1440:
             if before_midnight and before_noon:
                 azimuth = (
@@ -392,32 +381,24 @@ class CircadianLighting(object):
 
     def percent_elevation_day(self, date, latitude, longitude):
         """Compute the percentage of the Sun elevation for the day."""
-        max_elevation = degrees(
-            self.solar_noon_elevation(date, latitude, longitude)
-        )
+        max_elevation = degrees(self.solar_noon_elevation(date, latitude, longitude))
         min_elevation = -0.833
         actual_elevation = degrees(self.elevation(date, latitude, longitude))
-        return (actual_elevation - min_elevation) / (
-            max_elevation - min_elevation
-        )
+        return (actual_elevation - min_elevation) / (max_elevation - min_elevation)
 
     def percent_elevation_civil_twilight(self, date, latitude, longitude):
         """Percentage of the Sun elevation for the civil twilight."""
         max_elevation = -0.833
         min_elevation = -6
         actual_elevation = degrees(self.elevation(date, latitude, longitude))
-        return (actual_elevation - min_elevation) / (
-            max_elevation - min_elevation
-        )
+        return (actual_elevation - min_elevation) / (max_elevation - min_elevation)
 
     def percent_elevation_nautical_twilight(self, date, latitude, longitude):
         """Percentage of the Sun elevation for the nautical twilight."""
         max_elevation = -6
         min_elevation = -12
         actual_elevation = degrees(self.elevation(date, latitude, longitude))
-        return (actual_elevation - min_elevation) / (
-            max_elevation - min_elevation
-        )
+        return (actual_elevation - min_elevation) / (max_elevation - min_elevation)
 
     def color_temp(self):
         """Compute the circadian color temperature."""
@@ -427,15 +408,11 @@ class CircadianLighting(object):
         actual_elevation = degrees(self.elevation(date, latitude, longitude))
         if actual_elevation > -0.833:
             return round(
-                self.percent_elevation_day(date, latitude, longitude) * 2500
-                + 3000
+                self.percent_elevation_day(date, latitude, longitude) * 2500 + 3000
             )
         elif actual_elevation <= -0.833 and actual_elevation > -6:
             return round(
-                self.percent_elevation_civil_twilight(
-                    date, latitude, longitude
-                )
-                * 1000
+                self.percent_elevation_civil_twilight(date, latitude, longitude) * 1000
                 + 2000
             )
         else:
@@ -451,10 +428,7 @@ class CircadianLighting(object):
             return 100
         elif actual_elevation <= -6 and actual_elevation > -12:
             return round(
-                self.percent_elevation_nautical_twilight(
-                    date, latitude, longitude
-                )
-                * 50
+                self.percent_elevation_nautical_twilight(date, latitude, longitude) * 50
                 + 50
             )
         else:
