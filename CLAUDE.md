@@ -11,7 +11,9 @@ Home Assistant custom integration that provides circadian lighting sensors — c
 **Testing** uses pytest with coverage. Test dependencies are in `requirements_test.txt`.
 ```bash
 pip install -r requirements_test.txt
-pytest
+pytest                                        # run all tests
+pytest tests/test_daily_profile.py -s         # run daily profile tests (prints 24h sensor tables)
+pytest -k "spring_equinox" -s                 # run a single date scenario
 ```
 Coverage reports are generated automatically (terminal + `coverage.xml`). Branch coverage is enabled. Tests live in `tests/` and mock `dt.now()` and HA dispatcher/platform internals via fixtures in `tests/conftest.py`.
 
