@@ -71,3 +71,14 @@ All source code lives in `custom_components/circadian_lighting/`.
 - Solar calculations are self-contained in `CircadianLighting` (no third-party astronomy library).
 - Integration version is tracked in `manifest.json`.
 - HACS compatibility is maintained via `hacs.json` (`content_in_root: false`).
+
+## Change Workflow
+
+When making modifications, always follow this process using subagents for each step:
+
+1. **Code review** — Review your changes using a subagent. Fix findings using subagents. Iterate until no findings remain.
+2. **Security review** — Security-review your changes using a subagent. Fix findings using subagents. Iterate until no findings remain.
+3. **Tests** — Verify tests still pass with 100% coverage using a subagent. Fix failures using subagents. Never delete tests to make them pass.
+4. **Linters** — Verify linters still pass using a subagent. Fix findings using subagents. Never disable linters.
+5. **Update CLAUDE.md** — If the changes affect architecture, conventions, or configuration, update this file.
+6. **Commit** — Commit your changes.
