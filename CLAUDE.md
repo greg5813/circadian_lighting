@@ -35,10 +35,10 @@ All source code lives in `custom_components/circadian_lighting/`.
 ### `__init__.py` — Integration setup + solar math engine
 - `setup(hass, config)`: HA entry point. Reads config, creates `CircadianLighting` instance, stores it in `hass.data`, loads the sensor platform.
 - `CircadianLighting`: Core class implementing NOAA solar position algorithms from scratch using Python `math`. Computes fractional year → equation of time → declination → hour angle → elevation/zenith/azimuth → sunrise/sunset/solar noon. All trig uses radians internally.
-- `color_temp()`: Returns Kelvin value based on sun elevation thresholds:
-  - Above -0.833° (day): 3000–5500K scaled by percent of max elevation
-  - -0.833° to -6° (civil twilight): 2000–3000K
-  - Below -6° (night): fixed 2000K
+- `color_temp()`: Returns Kelvin value based on sun elevation thresholds, using configured `min_colortemp`/`max_colortemp`. The total range is split 5/7 for daytime and 2/7 for civil twilight. Return values are clamped to `[min_ct, max_ct]`.
+  - Above -0.833° (day): `mid_ct`–`max_ct` scaled by percent of max elevation
+  - -0.833° to -6° (civil twilight): `min_ct`–`mid_ct`
+  - Below -6° (night): fixed `min_ct`
 - `brightness()`: Returns percentage based on elevation:
   - Above -6°: 100%
   - -6° to -12° (nautical twilight): 50–100% linear
@@ -49,7 +49,7 @@ All source code lives in `custom_components/circadian_lighting/`.
 ### `sensor.py` — Sensor entities
 - `CircadianLightSensorBase`: Abstract base class extending `homeassistant.helpers.entity.Entity`. Subclasses declare `_data_key`, `_attr_name`, `_attr_entity_id`, and `_attr_unit` as class attributes.
 - `CircadianLightColorTemperatureSensor` and `CircadianLightBrightnessSensor` — thin subclasses that only set the four class attributes above.
-- Sensors listen for dispatcher updates and implement `update()` which triggers the throttled recalculation.
+- Sensors listen for dispatcher updates and implement `update()` which triggers the throttled recalculation. `update_sensor()` calls `schedule_update_ha_state()` to push state changes to HA.
 - Registers the `circadian_lighting.values_update` service for manual refresh.
 
 ### Configuration (via `configuration.yaml`)
@@ -61,6 +61,8 @@ All source code lives in `custom_components/circadian_lighting/`.
 | `latitude`      | HA latitude  | valid lat    |
 | `longitude`     | HA longitude | valid lon    |
 | `interval`      | 60 (seconds) | positive int |
+
+`min_colortemp` must be strictly less than `max_colortemp` (validated at config load).
 
 ## Key Conventions
 

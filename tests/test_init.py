@@ -35,7 +35,7 @@ class TestConstants:
         assert CIRCADIAN_LIGHTING_UPDATE_TOPIC == "circadian_lighting_update"
 
     def test_platforms(self):
-        assert CIRCADIAN_LIGHTING_PLATFORMS == ["sensor", "switch"]
+        assert CIRCADIAN_LIGHTING_PLATFORMS == ["sensor"]
 
     def test_default_values(self):
         assert DEFAULT_MIN_CT == 2000
@@ -107,6 +107,14 @@ class TestConfigSchema:
     def test_extra_keys_allowed(self):
         result = CONFIG_SCHEMA({DOMAIN: {}, "other_integration": {"key": "val"}})
         assert "other_integration" in result
+
+    def test_min_colortemp_equals_max_raises(self):
+        with pytest.raises(vol.Invalid):
+            self._validate({"min_colortemp": 5000, "max_colortemp": 5000})
+
+    def test_min_colortemp_exceeds_max_raises(self):
+        with pytest.raises(vol.Invalid):
+            self._validate({"min_colortemp": 6000, "max_colortemp": 3000})
 
 
 # ---------------------------------------------------------------------------
@@ -709,6 +717,64 @@ class TestColorTemp:
     def test_returns_int(self, cl_factory, mock_dt):
         cl = cl_factory()
         assert isinstance(cl.color_temp(), int)
+
+    def test_custom_range_daytime(self, cl_factory, mock_dt):
+        """Custom min/max color temp should scale proportionally."""
+        mock_dt.now.return_value = make_aware_dt(
+            2024, 6, 21, 12, 0, 0, utc_offset_hours=1
+        )
+        cl = cl_factory(min_ct=3000, max_ct=6500)
+        result = cl.color_temp()
+        assert 3000 <= result <= 6500
+
+    def test_custom_range_night(self, cl_factory, mock_dt):
+        """Night should return min_colortemp regardless of configuration."""
+        mock_dt.now.return_value = make_aware_dt(
+            2024, 3, 21, 1, 0, 0, utc_offset_hours=1
+        )
+        cl = cl_factory(min_ct=3000, max_ct=6500)
+        result = cl.color_temp()
+        assert result == 3000
+
+    def test_custom_range_civil_twilight(self, cl_factory, mock_dt):
+        """Civil twilight with custom range should stay within bounds."""
+        for hour, minute in [(5, 45), (5, 50), (5, 55), (19, 0), (19, 5), (19, 10)]:
+            mock_dt.now.return_value = make_aware_dt(
+                2024, 3, 21, hour, minute, 0, utc_offset_hours=1
+            )
+            cl = cl_factory(min_ct=3000, max_ct=6500)
+            elev = degrees(
+                cl.elevation(
+                    mock_dt.now.return_value.replace(tzinfo=None),
+                    48.8566,
+                    2.3522,
+                )
+            )
+            if -6 < elev <= -0.833:
+                result = cl.color_temp()
+                assert 3000 <= result <= 6500
+                return
+        pytest.fail("No candidate time fell within civil twilight band")
+
+    def test_color_temp_never_exceeds_max(self, cl_factory, mock_dt):
+        """Color temp should be clamped to max_colortemp."""
+        mock_dt.now.return_value = make_aware_dt(
+            2024, 6, 21, 12, 0, 0, utc_offset_hours=1
+        )
+        cl = cl_factory(min_ct=2000, max_ct=5500)
+        result = cl.color_temp()
+        assert result <= 5500
+
+    def test_color_temp_never_below_min(self, cl_factory, mock_dt):
+        """Color temp should never go below min_colortemp."""
+        # Test across multiple times of day
+        for hour in range(0, 24, 3):
+            mock_dt.now.return_value = make_aware_dt(
+                2024, 3, 21, hour, 0, 0, utc_offset_hours=1
+            )
+            cl = cl_factory(min_ct=2000, max_ct=5500)
+            result = cl.color_temp()
+            assert result >= 2000, f"color_temp={result} below min at hour={hour}"
 
 
 # ---------------------------------------------------------------------------

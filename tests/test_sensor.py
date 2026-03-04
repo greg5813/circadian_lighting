@@ -12,7 +12,7 @@ from custom_components.circadian_lighting.sensor import (
     CircadianLightColorTemperatureSensor,
     setup_platform,
 )
-from homeassistant.const import PERCENTAGE, UnitOfTemperature
+from homeassistant.const import PERCENTAGE
 
 
 def _make_cl_mock():
@@ -103,7 +103,7 @@ class TestColorTemperatureSensor:
 
     def test_unit_of_measurement(self, mock_hass, mock_dispatcher_connect):
         sensor, _ = self._make_sensor(mock_hass, mock_dispatcher_connect)
-        assert sensor.unit_of_measurement == UnitOfTemperature.KELVIN
+        assert sensor.unit_of_measurement == "K"
 
     def test_update_calls_throttled(self, mock_hass, mock_dispatcher_connect):
         sensor, cl = self._make_sensor(mock_hass, mock_dispatcher_connect)
@@ -128,6 +128,16 @@ class TestColorTemperatureSensor:
         mock_dispatcher_connect.assert_called_with(
             mock_hass, CIRCADIAN_LIGHTING_UPDATE_TOPIC, sensor.update_sensor
         )
+
+    def test_update_sensor_calls_schedule_update(
+        self, mock_hass, mock_dispatcher_connect
+    ):
+        sensor, cl = self._make_sensor(mock_hass, mock_dispatcher_connect)
+        sensor.hass = mock_hass
+        sensor.schedule_update_ha_state = MagicMock()
+        cl.data["color_temp"] = 4500
+        sensor.update_sensor()
+        sensor.schedule_update_ha_state.assert_called_once()
 
 
 # ---------------------------------------------------------------------------

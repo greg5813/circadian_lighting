@@ -5,11 +5,9 @@ from custom_components.circadian_lighting import (
     DATA_CIRCADIAN_LIGHTING,
     DOMAIN,
 )
-from homeassistant.const import PERCENTAGE, UnitOfTemperature
+from homeassistant.const import PERCENTAGE
 from homeassistant.helpers.dispatcher import dispatcher_connect
 from homeassistant.helpers.entity import Entity
-
-DEPENDENCIES = ["circadian_lighting"]
 
 
 def setup_platform(hass, config, add_entities, discovery_info=None):
@@ -79,6 +77,8 @@ class CircadianLightSensorBase(Entity):
         """Set sensor data from circadian lighting."""
         if self._cl.data is not None:
             self._state = self._cl.data[self._data_key]
+            if self.hass is not None:
+                self.schedule_update_ha_state()
 
 
 class CircadianLightColorTemperatureSensor(CircadianLightSensorBase):
@@ -87,7 +87,7 @@ class CircadianLightColorTemperatureSensor(CircadianLightSensorBase):
     _data_key = "color_temp"
     _attr_name = "Circadian Light Color Temperature"
     _attr_entity_id = "sensor.circadian_light_color_temperature"
-    _attr_unit = UnitOfTemperature.KELVIN
+    _attr_unit = "K"
 
 
 class CircadianLightBrightnessSensor(CircadianLightSensorBase):
