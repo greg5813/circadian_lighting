@@ -17,7 +17,7 @@ _LOGGER = logging.getLogger(__name__)
 
 DOMAIN = "circadian_lighting"
 CIRCADIAN_LIGHTING_PLATFORMS = ["sensor"]
-CIRCADIAN_LIGHTING_UPDATE_TOPIC = "{0}_update".format(DOMAIN)
+CIRCADIAN_LIGHTING_UPDATE_TOPIC = f"{DOMAIN}_update"
 DATA_CIRCADIAN_LIGHTING = "data_cl"
 
 CONF_MIN_CT = "min_colortemp"
@@ -91,14 +91,18 @@ class CircadianLighting:
     ):
         """Init circadian lighting class."""
         self.hass = hass
-        self.data = {}
-        self.data["min_colortemp"] = min_colortemp
-        self.data["max_colortemp"] = max_colortemp
-        self.data["latitude"] = latitude
-        self.data["longitude"] = longitude
-        self.data["interval"] = interval
-        self.data["color_temp"] = self.color_temp()
-        self.data["brightness"] = self.brightness()
+        self.min_colortemp = min_colortemp
+        self.max_colortemp = max_colortemp
+        self.latitude = latitude
+        self.longitude = longitude
+        self.interval = interval
+
+        now = dt.now()
+        self._utc_offset_min = round(now.utcoffset().total_seconds() / 60)
+        self.data = {
+            "color_temp": self.color_temp(now),
+            "brightness": self.brightness(now),
+        }
 
         self.update = Throttle(timedelta(seconds=interval))(self._update)
 
@@ -135,18 +139,15 @@ class CircadianLighting:
 
     def time_offset(self, date, longitude):
         """Compute the time offset of the solar time."""
-        return (
-            self.eqtime(date)
-            + 4 * longitude
-            - round(dt.now().utcoffset().total_seconds() / 60)
-        )
+        return self.eqtime(date) + 4 * longitude - self._utc_offset_min
 
     def tst(self, date, longitude):
         """Compute the true solar time."""
+        tt = date.timetuple()
         return (
-            date.timetuple().tm_hour * 60
-            + date.timetuple().tm_min
-            + date.timetuple().tm_sec / 60
+            tt.tm_hour * 60
+            + tt.tm_min
+            + tt.tm_sec / 60
             + self.time_offset(date, longitude)
         )
 
@@ -156,21 +157,17 @@ class CircadianLighting:
 
     def elevation(self, date, latitude, longitude):
         """Compute the elevation of the Sun."""
+        decl = self.decl(date)
         return asin(
-            sin(radians(latitude)) * sin(self.decl(date))
+            sin(radians(latitude)) * sin(decl)
             + cos(radians(latitude))
-            * cos(self.decl(date))
+            * cos(decl)
             * cos(radians(self.ha(date, longitude)))
         )
 
     def zenith(self, date, latitude, longitude):
         """Compute the zenith of the Sun."""
-        return acos(
-            sin(radians(latitude)) * sin(self.decl(date))
-            + cos(radians(latitude))
-            * cos(self.decl(date))
-            * cos(radians(self.ha(date, longitude)))
-        )
+        return pi / 2 - self.elevation(date, latitude, longitude)
 
     def ha_sunset(self, date, latitude):
         """Compute the hour angle of the sunset."""
@@ -196,7 +193,7 @@ class CircadianLighting:
             720
             - 4 * (longitude - self.ha_sunrise(date, latitude))
             - self.eqtime(date)
-            + round(dt.now().utcoffset().total_seconds() / 60)
+            + self._utc_offset_min
         )
 
     def sunset(self, date, latitude, longitude):
@@ -205,25 +202,16 @@ class CircadianLighting:
             720
             - 4 * (longitude - self.ha_sunset(date, latitude))
             - self.eqtime(date)
-            + round(dt.now().utcoffset().total_seconds() / 60)
+            + self._utc_offset_min
         )
 
     def solar_noon(self, date, longitude):
         """Compute the solar noon in minutes from midnight."""
-        return (
-            720
-            - 4 * longitude
-            - self.eqtime(date)
-            + round(dt.now().utcoffset().total_seconds() / 60)
-        )
+        return 720 - 4 * longitude - self.eqtime(date) + self._utc_offset_min
 
     def solar_midnight(self, date, longitude):
         """Compute the solar midnight in minutes from midnight."""
-        return (
-            -4 * longitude
-            - self.eqtime(date)
-            + round(dt.now().utcoffset().total_seconds() / 60)
-        )
+        return -4 * longitude - self.eqtime(date) + self._utc_offset_min
 
     def solar_noon_elevation(self, date, latitude, longitude):
         """Compute the solar noon elevation."""
@@ -241,167 +229,55 @@ class CircadianLighting:
 
     def azimuth(self, date, latitude, longitude):
         """Compute the azimuth of the Sun."""
-        date_seconds = date.hour * 60 + date.minute + date.second / 60
+        date_minutes = date.hour * 60 + date.minute + date.second / 60
         midnight = self.solar_midnight(date, longitude)
         noon = self.solar_noon(date, longitude)
-        midnight0 = midnight > 0
-        noon1440 = noon < 1440
-        before_midnight = (date_seconds - midnight % 1440) < 0
-        before_noon = (date_seconds - noon % 1440) < 0
-        azimuth = 0.0
-        if midnight0 and noon1440:
-            if before_midnight and before_noon:
-                azimuth = (
-                    -acos(
-                        (
-                            sin(self.decl(date))
-                            - sin(radians(latitude))
-                            * cos(self.zenith(date, latitude, longitude))
-                        )
-                        / (
-                            cos(radians(latitude))
-                            * sin(self.zenith(date, latitude, longitude))
-                        )
-                    )
-                    + 2 * pi
-                )
-            elif not before_midnight and before_noon:
-                azimuth = acos(
-                    (
-                        sin(self.decl(date))
-                        - sin(radians(latitude))
-                        * cos(self.zenith(date, latitude, longitude))
-                    )
-                    / (
-                        cos(radians(latitude))
-                        * sin(self.zenith(date, latitude, longitude))
-                    )
-                )
-            else:  # not before_midnight and not before_noon
-                azimuth = (
-                    -acos(
-                        (
-                            sin(self.decl(date))
-                            - sin(radians(latitude))
-                            * cos(self.zenith(date, latitude, longitude))
-                        )
-                        / (
-                            cos(radians(latitude))
-                            * sin(self.zenith(date, latitude, longitude))
-                        )
-                    )
-                    + 2 * pi
-                )
-        elif not midnight0 and noon1440:
-            if before_midnight and before_noon:
-                azimuth = acos(
-                    (
-                        sin(self.decl(date))
-                        - sin(radians(latitude))
-                        * cos(self.zenith(date, latitude, longitude))
-                    )
-                    / (
-                        cos(radians(latitude))
-                        * sin(self.zenith(date, latitude, longitude))
-                    )
-                )
-            elif before_midnight and not before_noon:
-                azimuth = (
-                    -acos(
-                        (
-                            sin(self.decl(date))
-                            - sin(radians(latitude))
-                            * cos(self.zenith(date, latitude, longitude))
-                        )
-                        / (
-                            cos(radians(latitude))
-                            * sin(self.zenith(date, latitude, longitude))
-                        )
-                    )
-                    + 2 * pi
-                )
-            else:  # not before_midnight and not before_noon
-                azimuth = acos(
-                    (
-                        sin(self.decl(date))
-                        - sin(radians(latitude))
-                        * cos(self.zenith(date, latitude, longitude))
-                    )
-                    / (
-                        cos(radians(latitude))
-                        * sin(self.zenith(date, latitude, longitude))
-                    )
-                )
-        else:  # midnight0 and not noon1440
-            if before_midnight and before_noon:
-                azimuth = acos(
-                    (
-                        sin(self.decl(date))
-                        - sin(radians(latitude))
-                        * cos(self.zenith(date, latitude, longitude))
-                    )
-                    / (
-                        cos(radians(latitude))
-                        * sin(self.zenith(date, latitude, longitude))
-                    )
-                )
-            elif before_midnight and not before_noon:
-                azimuth = (
-                    -acos(
-                        (
-                            sin(self.decl(date))
-                            - sin(radians(latitude))
-                            * cos(self.zenith(date, latitude, longitude))
-                        )
-                        / (
-                            cos(radians(latitude))
-                            * sin(self.zenith(date, latitude, longitude))
-                        )
-                    )
-                    + 2 * pi
-                )
-            else:  # not before_midnight and not before_noon
-                azimuth = acos(
-                    (
-                        sin(self.decl(date))
-                        - sin(radians(latitude))
-                        * cos(self.zenith(date, latitude, longitude))
-                    )
-                    / (
-                        cos(radians(latitude))
-                        * sin(self.zenith(date, latitude, longitude))
-                    )
-                )
-        return azimuth
+        before_midnight = (date_minutes - midnight % 1440) < 0
+        before_noon = (date_minutes - noon % 1440) < 0
 
-    def percent_elevation_day(self, date, latitude, longitude):
+        zen = self.zenith(date, latitude, longitude)
+        decl = self.decl(date)
+        raw_angle = acos(
+            (sin(decl) - sin(radians(latitude)) * cos(zen))
+            / (cos(radians(latitude)) * sin(zen))
+        )
+
+        if midnight > 0 and noon < 1440:
+            if not before_midnight and before_noon:
+                return raw_angle
+            return -raw_angle + 2 * pi
+        else:
+            if before_midnight and not before_noon:
+                return -raw_angle + 2 * pi
+            return raw_angle
+
+    def percent_elevation_day(self, actual_elevation_deg, date, latitude, longitude):
         """Compute the percentage of the Sun elevation for the day."""
         max_elevation = degrees(self.solar_noon_elevation(date, latitude, longitude))
         min_elevation = -0.833
-        actual_elevation = degrees(self.elevation(date, latitude, longitude))
-        return (actual_elevation - min_elevation) / (max_elevation - min_elevation)
+        return (actual_elevation_deg - min_elevation) / (max_elevation - min_elevation)
 
-    def percent_elevation_civil_twilight(self, date, latitude, longitude):
+    def percent_elevation_civil_twilight(self, actual_elevation_deg):
         """Percentage of the Sun elevation for the civil twilight."""
         max_elevation = -0.833
         min_elevation = -6
-        actual_elevation = degrees(self.elevation(date, latitude, longitude))
-        return (actual_elevation - min_elevation) / (max_elevation - min_elevation)
+        return (actual_elevation_deg - min_elevation) / (max_elevation - min_elevation)
 
-    def percent_elevation_nautical_twilight(self, date, latitude, longitude):
+    def percent_elevation_nautical_twilight(self, actual_elevation_deg):
         """Percentage of the Sun elevation for the nautical twilight."""
         max_elevation = -6
         min_elevation = -12
-        actual_elevation = degrees(self.elevation(date, latitude, longitude))
-        return (actual_elevation - min_elevation) / (max_elevation - min_elevation)
+        return (actual_elevation_deg - min_elevation) / (max_elevation - min_elevation)
 
-    def color_temp(self):
+    def color_temp(self, date=None):
         """Compute the circadian color temperature."""
-        date = dt.now()
-        latitude = self.data["latitude"]
-        longitude = self.data["longitude"]
-        min_ct = self.data["min_colortemp"]
-        max_ct = self.data["max_colortemp"]
+        if date is None:
+            date = dt.now()
+            self._utc_offset_min = round(date.utcoffset().total_seconds() / 60)
+        latitude = self.latitude
+        longitude = self.longitude
+        min_ct = self.min_colortemp
+        max_ct = self.max_colortemp
         total_range = max_ct - min_ct
         # Split total range: 2/7 for twilight (-6° to -0.833°), 5/7 for daytime
         # Preserves the original 1000:2500 ratio from the pre-configurable version
@@ -415,7 +291,9 @@ class CircadianLighting:
                 min(
                     max_ct,
                     round(
-                        self.percent_elevation_day(date, latitude, longitude)
+                        self.percent_elevation_day(
+                            actual_elevation, date, latitude, longitude
+                        )
                         * day_range
                         + mid_ct
                     ),
@@ -427,7 +305,7 @@ class CircadianLighting:
                 min(
                     max_ct,
                     round(
-                        self.percent_elevation_civil_twilight(date, latitude, longitude)
+                        self.percent_elevation_civil_twilight(actual_elevation)
                         * twilight_range
                         + min_ct
                     ),
@@ -436,24 +314,31 @@ class CircadianLighting:
         else:
             return min_ct
 
-    def brightness(self):
+    def brightness(self, date=None):
         """Compute the circadian brightness."""
-        date = dt.now()
-        latitude = self.data["latitude"]
-        longitude = self.data["longitude"]
+        if date is None:
+            date = dt.now()
+            self._utc_offset_min = round(date.utcoffset().total_seconds() / 60)
+        latitude = self.latitude
+        longitude = self.longitude
         actual_elevation = degrees(self.elevation(date, latitude, longitude))
         if actual_elevation > -6:
             return 100
         elif actual_elevation > -12:
             return round(
-                self.percent_elevation_nautical_twilight(date, latitude, longitude) * 50
-                + 50
+                self.percent_elevation_nautical_twilight(actual_elevation) * 50 + 50
             )
         else:
             return 50
 
+    def force_update(self):
+        """Force an update, bypassing the throttle."""
+        self._update()
+
     def _update(self, *args, **kwargs):
         """Update Circadian Values."""
-        self.data["color_temp"] = self.color_temp()
-        self.data["brightness"] = self.brightness()
+        now = dt.now()
+        self._utc_offset_min = round(now.utcoffset().total_seconds() / 60)
+        self.data["color_temp"] = self.color_temp(now)
+        self.data["brightness"] = self.brightness(now)
         dispatcher_send(self.hass, CIRCADIAN_LIGHTING_UPDATE_TOPIC)

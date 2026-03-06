@@ -35,22 +35,27 @@ All source code lives in `custom_components/circadian_lighting/`.
 ### `__init__.py` — Integration setup + solar math engine
 - `setup(hass, config)`: HA entry point. Reads config, creates `CircadianLighting` instance, stores it in `hass.data`, loads the sensor platform.
 - `CircadianLighting`: Core class implementing NOAA solar position algorithms from scratch using Python `math`. Computes fractional year → equation of time → declination → hour angle → elevation/zenith/azimuth → sunrise/sunset/solar noon. All trig uses radians internally.
-- `color_temp()`: Returns Kelvin value based on sun elevation thresholds, using configured `min_colortemp`/`max_colortemp`. The total range is split 5/7 for daytime and 2/7 for civil twilight. Return values are clamped to `[min_ct, max_ct]`.
+  - Config is stored as instance attributes (`min_colortemp`, `max_colortemp`, `latitude`, `longitude`, `interval`); computed state lives in `self.data` dict (`color_temp`, `brightness`).
+- `color_temp(date=None)`: Returns Kelvin value based on sun elevation thresholds. Accepts optional datetime; defaults to `dt.now()`. The total range is split 5/7 for daytime and 2/7 for civil twilight. Return values are clamped to `[min_ct, max_ct]`.
   - Above -0.833° (day): `mid_ct`–`max_ct` scaled by percent of max elevation
   - -0.833° to -6° (civil twilight): `min_ct`–`mid_ct`
   - Below -6° (night): fixed `min_ct`
-- `brightness()`: Returns percentage based on elevation:
+- `brightness(date=None)`: Returns percentage based on elevation. Accepts optional datetime; defaults to `dt.now()`.
   - Above -6°: 100%
   - -6° to -12° (nautical twilight): 50–100% linear
   - Below -12°: 50%
+- `force_update()`: Public method to trigger an immediate update bypassing the throttle.
+- `_update()` captures `dt.now()` once and passes it to both `color_temp()` and `brightness()` for time consistency. The UTC offset (`_utc_offset_min`) is also cached per update cycle.
 - Updates are throttled via `homeassistant.util.Throttle` (configurable interval, default 60s).
 - Notifies sensors via `dispatcher_send` on the `circadian_lighting_update` topic.
+- `zenith()` is defined as `pi/2 - elevation()` to avoid formula duplication.
+- `percent_elevation_day(actual_elevation_deg, date, lat, lon)` accepts pre-computed elevation to avoid redundant recalculation. `percent_elevation_civil_twilight(actual_elevation_deg)` and `percent_elevation_nautical_twilight(actual_elevation_deg)` take only the elevation value.
 
 ### `sensor.py` — Sensor entities
 - `CircadianLightSensorBase`: Abstract base class extending `homeassistant.helpers.entity.Entity`. Subclasses declare `_data_key`, `_attr_name`, `_attr_entity_id`, and `_attr_unit` as class attributes.
 - `CircadianLightColorTemperatureSensor` and `CircadianLightBrightnessSensor` — thin subclasses that only set the four class attributes above.
 - Sensors listen for dispatcher updates and implement `update()` which triggers the throttled recalculation. `update_sensor()` calls `schedule_update_ha_state()` to push state changes to HA.
-- Registers the `circadian_lighting.values_update` service for manual refresh.
+- Registers the `circadian_lighting.values_update` service for manual refresh (calls `force_update()`).
 
 ### Configuration (via `configuration.yaml`)
 

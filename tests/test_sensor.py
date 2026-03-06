@@ -19,7 +19,7 @@ def _make_cl_mock():
     cl = MagicMock()
     cl.data = {"color_temp": 4000, "brightness": 100}
     cl.update = MagicMock()
-    cl._update = MagicMock()
+    cl.force_update = MagicMock()
     return cl
 
 
@@ -57,13 +57,13 @@ class TestSetupPlatform:
         assert call_args[0][0] == DOMAIN
         assert call_args[0][1] == "values_update"
 
-    def test_service_calls_cl_update(self, mock_hass, mock_dispatcher_connect):
+    def test_service_calls_force_update(self, mock_hass, mock_dispatcher_connect):
         cl = _make_cl_mock()
         mock_hass.data[DATA_CIRCADIAN_LIGHTING] = cl
         setup_platform(mock_hass, {}, MagicMock())
         service_callback = mock_hass.services.register.call_args[0][2]
         service_callback()
-        cl._update.assert_called_once()
+        cl.force_update.assert_called_once()
 
     def test_service_accepts_call_param(self, mock_hass, mock_dispatcher_connect):
         cl = _make_cl_mock()

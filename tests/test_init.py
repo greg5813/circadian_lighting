@@ -162,8 +162,8 @@ class TestSetup:
         config = self._make_config(latitude=40.0, longitude=-74.0)
         setup(mock_hass, config)
         cl = mock_hass.data[DATA_CIRCADIAN_LIGHTING]
-        assert cl.data["latitude"] == 40.0
-        assert cl.data["longitude"] == -74.0
+        assert cl.latitude == 40.0
+        assert cl.longitude == -74.0
 
     def test_falls_back_to_hass_config(
         self, mock_hass, mock_dt, mock_load_platform, mock_dispatcher_send
@@ -173,8 +173,8 @@ class TestSetup:
         }
         setup(mock_hass, config)
         cl = mock_hass.data[DATA_CIRCADIAN_LIGHTING]
-        assert cl.data["latitude"] == mock_hass.config.latitude
-        assert cl.data["longitude"] == mock_hass.config.longitude
+        assert cl.latitude == mock_hass.config.latitude
+        assert cl.longitude == mock_hass.config.longitude
 
     def test_passes_min_max_colortemp(
         self, mock_hass, mock_dt, mock_load_platform, mock_dispatcher_send
@@ -182,8 +182,8 @@ class TestSetup:
         config = self._make_config(min_colortemp=3000, max_colortemp=7000)
         setup(mock_hass, config)
         cl = mock_hass.data[DATA_CIRCADIAN_LIGHTING]
-        assert cl.data["min_colortemp"] == 3000
-        assert cl.data["max_colortemp"] == 7000
+        assert cl.min_colortemp == 3000
+        assert cl.max_colortemp == 7000
 
     def test_passes_interval(
         self, mock_hass, mock_dt, mock_load_platform, mock_dispatcher_send
@@ -191,7 +191,7 @@ class TestSetup:
         config = self._make_config(interval=120)
         setup(mock_hass, config)
         cl = mock_hass.data[DATA_CIRCADIAN_LIGHTING]
-        assert cl.data["interval"] == 120
+        assert cl.interval == 120
 
 
 # ---------------------------------------------------------------------------
@@ -202,11 +202,11 @@ class TestSetup:
 class TestCircadianLightingInit:
     def test_stores_config(self, cl_factory):
         cl = cl_factory()
-        assert cl.data["min_colortemp"] == 2000
-        assert cl.data["max_colortemp"] == 5500
-        assert cl.data["latitude"] == 48.8566
-        assert cl.data["longitude"] == 2.3522
-        assert cl.data["interval"] == 60
+        assert cl.min_colortemp == 2000
+        assert cl.max_colortemp == 5500
+        assert cl.latitude == 48.8566
+        assert cl.longitude == 2.3522
+        assert cl.interval == 60
 
     def test_initial_color_temp(self, cl_factory):
         cl = cl_factory()
@@ -316,8 +316,8 @@ class TestTimeOffsetTstHa:
         assert isclose(result, expected)
 
     def test_time_offset_utc_minus_5(self, cl_factory, mock_dt):
-        cl = cl_factory()
         mock_dt.now.return_value = make_aware_dt(2024, 3, 21, 12, utc_offset_hours=-5)
+        cl = cl_factory()
         date = datetime.datetime(2024, 3, 21, 12, 0, 0)
         result = cl.time_offset(date, 0.0)
         eqt = cl.eqtime(date)
@@ -487,12 +487,12 @@ class TestSolarNoonMidnightElevation:
 
 
 # ---------------------------------------------------------------------------
-# azimuth — 9 reachable branches
+# azimuth
 # ---------------------------------------------------------------------------
 
 
 class TestAzimuth:
-    """Test all 9 reachable branches of azimuth().
+    """Test all reachable branches of azimuth().
 
     Branch structure:
     - A (midnight>0, noon<1440): normal case
@@ -601,7 +601,8 @@ class TestPercentElevation:
     def test_percent_day_at_noon(self, cl_factory, mock_dt):
         cl = cl_factory()
         date = datetime.datetime(2024, 3, 21, 12, 0, 0)
-        result = cl.percent_elevation_day(date, 48.8566, 2.3522)
+        actual_elevation = degrees(cl.elevation(date, 48.8566, 2.3522))
+        result = cl.percent_elevation_day(actual_elevation, date, 48.8566, 2.3522)
         assert 0.8 < result <= 1.1  # near 1.0 at noon
 
     def test_percent_civil_twilight_at_upper_boundary(self, cl_factory, mock_dt):
@@ -614,7 +615,7 @@ class TestPercentElevation:
             date = datetime.datetime(2024, 3, 21, hour, minute, 0)
             elev_deg = degrees(cl.elevation(date, 48.8566, 2.3522))
             if -6 < elev_deg < -0.833:
-                result = cl.percent_elevation_civil_twilight(date, 48.8566, 2.3522)
+                result = cl.percent_elevation_civil_twilight(elev_deg)
                 assert 0 <= result <= 1
                 return
         pytest.fail("No candidate time fell within civil twilight band")
@@ -622,7 +623,8 @@ class TestPercentElevation:
     def test_percent_nautical_twilight_formula(self, cl_factory, mock_dt):
         cl = cl_factory()
         date = datetime.datetime(2024, 3, 21, 12, 0, 0)
-        result = cl.percent_elevation_nautical_twilight(date, 48.8566, 2.3522)
+        actual_elevation = degrees(cl.elevation(date, 48.8566, 2.3522))
+        result = cl.percent_elevation_nautical_twilight(actual_elevation)
         assert isinstance(result, float)
 
     def test_percent_day_intermediate(self, cl_factory, mock_dt):
@@ -632,7 +634,8 @@ class TestPercentElevation:
         )
         cl = cl_factory()
         date = datetime.datetime(2024, 3, 21, 9, 0, 0)
-        result = cl.percent_elevation_day(date, 48.8566, 2.3522)
+        actual_elevation = degrees(cl.elevation(date, 48.8566, 2.3522))
+        result = cl.percent_elevation_day(actual_elevation, date, 48.8566, 2.3522)
         assert 0.0 < result < 1.0
 
     def test_percent_civil_twilight_during_twilight(self, cl_factory, mock_dt):
@@ -646,7 +649,7 @@ class TestPercentElevation:
             date = datetime.datetime(2024, 3, 21, hour, minute, 0)
             elev_deg = degrees(cl.elevation(date, 48.8566, 2.3522))
             if -6 < elev_deg < -0.833:
-                result = cl.percent_elevation_civil_twilight(date, 48.8566, 2.3522)
+                result = cl.percent_elevation_civil_twilight(elev_deg)
                 assert 0 <= result <= 1
                 return
         pytest.fail("No candidate time fell within civil twilight band")
@@ -662,7 +665,7 @@ class TestPercentElevation:
             date = datetime.datetime(2024, 3, 21, hour, minute, 0)
             elev_deg = degrees(cl.elevation(date, 48.8566, 2.3522))
             if -12 < elev_deg < -6:
-                result = cl.percent_elevation_nautical_twilight(date, 48.8566, 2.3522)
+                result = cl.percent_elevation_nautical_twilight(elev_deg)
                 assert 0 <= result <= 1
                 return
         pytest.fail("No candidate time fell within nautical twilight band")
@@ -824,7 +827,7 @@ class TestBrightness:
 
 
 # ---------------------------------------------------------------------------
-# _update
+# _update / force_update
 # ---------------------------------------------------------------------------
 
 
@@ -857,3 +860,12 @@ class TestUpdate:
     def test_accepts_args_kwargs(self, cl_factory, mock_dt, mock_dispatcher_send):
         cl = cl_factory()
         cl._update("arg1", key="val")  # should not raise
+
+    def test_force_update_calls_update(self, cl_factory, mock_dt, mock_dispatcher_send):
+        cl = cl_factory()
+        mock_dt.now.return_value = make_aware_dt(
+            2024, 3, 21, 1, 0, 0, utc_offset_hours=1
+        )
+        cl.force_update()
+        assert cl.data["color_temp"] == 2000
+        assert cl.data["brightness"] == 50

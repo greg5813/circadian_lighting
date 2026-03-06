@@ -20,7 +20,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
 
         def update(call=None):
             """Update component."""
-            cl._update()
+            cl.force_update()
 
         service_name = "values_update"
         hass.services.register(DOMAIN, service_name, update)
@@ -39,6 +39,7 @@ class CircadianLightSensorBase(Entity):
 
     def __init__(self, hass, cl):
         """Initialize the sensor."""
+        super().__init__()
         self._cl = cl
         self._name = self._attr_name
         self._entity_id = self._attr_entity_id
