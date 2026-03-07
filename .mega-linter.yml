@@ -35,5 +35,10 @@ PYTHON_MYPY_ARGUMENTS:
   - --explicit-package-bases
   - --ignore-missing-imports
 
+# Lychee: accept 429 (Too Many Requests) — GitHub rate-limits unauthenticated requests
+SPELL_LYCHEE_ARGUMENTS:
+  - --accept
+  - "200,429"
+
 # Uncomment if you want MegaLinter to detect errors but not block CI to pass
 # DISABLE_ERRORS: true
