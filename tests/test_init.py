@@ -72,8 +72,8 @@ class TestConfigSchema:
         conf = result[DOMAIN]
         assert conf["min_colortemp"] == 3000
         assert conf["max_colortemp"] == 6500
-        assert conf["latitude"] == 40.0
-        assert conf["longitude"] == -74.0
+        assert conf["latitude"] == pytest.approx(40.0)
+        assert conf["longitude"] == pytest.approx(-74.0)
         assert conf["interval"] == 120
 
     def test_string_coercion(self):
@@ -162,8 +162,8 @@ class TestSetup:
         config = self._make_config(latitude=40.0, longitude=-74.0)
         setup(mock_hass, config)
         cl = mock_hass.data[DATA_CIRCADIAN_LIGHTING]
-        assert cl.latitude == 40.0
-        assert cl.longitude == -74.0
+        assert cl.latitude == pytest.approx(40.0)
+        assert cl.longitude == pytest.approx(-74.0)
 
     def test_falls_back_to_hass_config(
         self, mock_hass, mock_dt, mock_load_platform, mock_dispatcher_send
@@ -204,8 +204,8 @@ class TestCircadianLightingInit:
         cl = cl_factory()
         assert cl.min_colortemp == 2000
         assert cl.max_colortemp == 5500
-        assert cl.latitude == 48.8566
-        assert cl.longitude == 2.3522
+        assert cl.latitude == pytest.approx(48.8566)
+        assert cl.longitude == pytest.approx(2.3522)
         assert cl.interval == 60
 
     def test_initial_color_temp(self, cl_factory):
@@ -236,14 +236,16 @@ class TestFractionalYear:
         cl = cl_factory()
         date = datetime.datetime(2023, 6, 21, 12, 0, 0)
         yday = date.timetuple().tm_yday  # 172
-        expected = 2 * pi / 365 * (yday - 1 + (12 - 12) / 24)
+        hour = date.hour
+        expected = 2 * pi / 365 * (yday - 1 + (hour - 12) / 24)
         assert isclose(cl.fractional_year(date), expected)
 
     def test_leap_year(self, cl_factory):
         cl = cl_factory()
         date = datetime.datetime(2024, 6, 21, 12, 0, 0)
         yday = date.timetuple().tm_yday  # 173
-        expected = 2 * pi / 366 * (yday - 1 + (12 - 12) / 24)
+        hour = date.hour
+        expected = 2 * pi / 366 * (yday - 1 + (hour - 12) / 24)
         assert isclose(cl.fractional_year(date), expected)
 
     def test_jan1_noon(self, cl_factory):

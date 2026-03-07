@@ -15,7 +15,8 @@ on:
       - main
       - master
 
-permissions: read-all
+permissions:
+  contents: read
 
 # Comment env block if you do not want to apply fixes
 env:
